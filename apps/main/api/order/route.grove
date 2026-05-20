@@ -1,0 +1,104 @@
+// HTTP route bindings for the order module.
+// Each POST maps to an action on the order aggregate.
+//
+// GET endpoints (list/detail) are served by serve.py reading the projection
+// SQLite directly. Grove handles writes; reads go through the projection.
+
+route {
+  POST create {
+    data result {
+      invoke order.create {
+        customer_name: input.body.customer_name,
+        customer_phone: input.body.customer_phone,
+        customer_email: input.body.customer_email,
+        frame_style: input.body.frame_style,
+        frame_color: input.body.frame_color,
+        frame_width_in: input.body.frame_width_in,
+        frame_height_in: input.body.frame_height_in,
+        mat_spec: input.body.mat_spec,
+        glass_type: input.body.glass_type,
+        mounting_type: input.body.mounting_type,
+        artwork_width_in: input.body.artwork_width_in,
+        artwork_height_in: input.body.artwork_height_in,
+        artwork_photo_url: input.body.artwork_photo_url,
+        notes: input.body.notes,
+        estimated_pickup_date: input.body.estimated_pickup_date,
+        deposit_amount: input.body.deposit_amount
+      }
+    }
+  }
+
+  POST start_cutting {
+    data result {
+      invoke order.start_cutting {
+        id: input.body.id
+      }
+    }
+  }
+
+  POST start_assembly {
+    data result {
+      invoke order.start_assembly {
+        id: input.body.id
+      }
+    }
+  }
+
+  POST mark_ready {
+    data result {
+      invoke order.mark_ready {
+        id: input.body.id
+      }
+    }
+  }
+
+  POST pick_up {
+    data result {
+      invoke order.pick_up {
+        id: input.body.id,
+        final_balance: input.body.final_balance
+      }
+    }
+  }
+
+  POST cancel {
+    data result {
+      invoke order.cancel {
+        id: input.body.id,
+        reason: input.body.reason
+      }
+    }
+  }
+
+  POST update {
+    data result {
+      invoke order.update {
+        id: input.body.id,
+        customer_name: input.body.customer_name,
+        customer_phone: input.body.customer_phone,
+        customer_email: input.body.customer_email,
+        frame_style: input.body.frame_style,
+        frame_color: input.body.frame_color,
+        frame_width_in: input.body.frame_width_in,
+        frame_height_in: input.body.frame_height_in,
+        mat_spec: input.body.mat_spec,
+        glass_type: input.body.glass_type,
+        mounting_type: input.body.mounting_type,
+        artwork_width_in: input.body.artwork_width_in,
+        artwork_height_in: input.body.artwork_height_in,
+        artwork_photo_url: input.body.artwork_photo_url,
+        notes: input.body.notes,
+        estimated_pickup_date: input.body.estimated_pickup_date,
+        deposit_amount: input.body.deposit_amount
+      }
+    }
+  }
+
+  POST delete {
+    data result {
+      invoke order.delete {
+        id: input.body.id
+      }
+    }
+  }
+}

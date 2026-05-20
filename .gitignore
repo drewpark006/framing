@@ -1,0 +1,8 @@
+node_modules/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+logs/
+.DS_Store
+nohup.out

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Framing — Manzano Dev Console</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --surface: #161b22;
+      --surface-2: #1c2230;
+      --border: #30363d;
+      --text: #e6edf3;
+      --dim: #8b949e;
+      --muted: #6e7681;
+      --accent: #58a6ff;
+      --good: #3fb950;
+      --warn: #d29922;
+      --bad: #f85149;
+      --string: #a5d6ff;
+      --number: #79c0ff;
+      --bool: #d2a8ff;
+      --null: #ff7b72;
+      --key: #ffa657;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    aside { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 16px; }
+    .logo { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .sub { color: var(--dim); font-size: 12px; margin-bottom: 24px; }
+    .nav { display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; }
+    .nav-section { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 12px 0 6px; padding: 0 6px; }
+    .nav button { appearance: none; border: 1px solid transparent; background: transparent; color: var(--text); text-align: left; padding: 8px 10px; font-size: 13px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+    .nav button:hover { background: var(--surface-2); }
+    .nav button.active { background: var(--surface-2); border-color: var(--border); color: var(--accent); }
+    main { padding: 28px 32px; overflow: auto; }
+    h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .panel-sub { color: var(--dim); font-size: 13px; margin-bottom: 18px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }
+    .panel h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+    pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin: 0; overflow-x: auto; font: 12.5px/1.55 "SF Mono", Menlo, monospace; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+    td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .pill-intake             { background: rgba(196,106,31,0.15);  color: #e0884a; }
+    .pill-cutting_materials  { background: rgba(181,138,5,0.15);   color: #f0c850; }
+    .pill-assembly           { background: rgba(93,75,156,0.15);   color: #a48de8; }
+    .pill-ready_for_pickup   { background: rgba(31,122,58,0.15);   color: #4dc97e; }
+    .pill-picked_up          { background: rgba(107,102,94,0.15);  color: #aaa49a; }
+    .pill-cancelled          { background: rgba(138,58,58,0.15);   color: #e88080; }
+    .field-type { color: var(--accent); font-family: "SF Mono", Menlo, monospace; font-size: 12px; }
+    .field-flag { color: var(--muted); font-size: 11px; }
+    .key { color: var(--key); }
+    .str { color: var(--string); }
+    .num { color: var(--number); }
+    .bool { color: var(--bool); }
+    .nullv { color: var(--null); }
+    .endpoint { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--accent); }
+    .meta-grid { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 13px; }
+    .meta-grid dt { color: var(--muted); }
+    .meta-grid dd { margin: 0; font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--text); }
+    .err { color: var(--bad); }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .toolbar button { appearance: none; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+    .toolbar button:hover { background: var(--surface); }
+    .events-block { font-family: "SF Mono", Menlo, monospace; font-size: 12px; }
+    .events-block .event-row { padding: 8px 10px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 70px 200px 110px 1fr; gap: 12px; }
+    .events-block .event-row:last-child { border-bottom: none; }
+    .events-block .stream-v { color: var(--accent); }
+    .events-block .event-name { color: var(--key); font-weight: 600; }
+    .events-block .event-agg { color: var(--dim); }
+    .events-block .event-payload { color: var(--string); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } aside { border-right: none; border-bottom: 1px solid var(--border); } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="logo">Framing</div>
+      <div class="sub">Manzano dev console</div>
+      <div class="nav" id="nav">
+        <div class="nav-section">App</div>
+        <button class="active" data-view="overview">Overview</button>
+        <button data-view="orders">Customer app ↗</button>
+        <div class="nav-section">Module: order</div>
+        <button data-view="schema">Schema</button>
+        <button data-view="records">Records</button>
+        <button data-view="events">Event log</button>
+        <div class="nav-section">Health</div>
+        <button data-view="health">Server status</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:24px;line-height:1.5">
+        Demo: <span class="endpoint">:8080</span><br>
+        Grove (writes): <span class="endpoint">:3000</span><br>
+        Grove (dev): <span class="endpoint">:3010</span>
+      </div>
+    </aside>
+    <main id="main"></main>
+  </div>
+
+  <script>
+    const main = document.getElementById('main');
+    const nav  = document.getElementById('nav');
+
+    nav.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-view]');
+      if (!btn) return;
+      if (btn.dataset.view === 'orders') { window.location.href = '/'; return; }
+      [...nav.querySelectorAll('button')].forEach(b => b.classList.toggle('active', b === btn));
+      render(btn.dataset.view);
+    });
+
+    function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+    function pretty(o) { return esc(JSON.stringify(o, null, 2)); }
+
+    async function fetchJson(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`${r.status} ${url}`);
+      return r.json();
+    }
+
+    async function render(view) {
+      main.innerHTML = '<p class="panel-sub">Loading…</p>';
+      try {
+        if (view === 'overview')  return await renderOverview();
+        if (view === 'schema')    return await renderSchema();
+        if (view === 'records')   return await renderRecords();
+        if (view === 'events')    return await renderEvents();
+        if (view === 'health')    return await renderHealth();
+      } catch (err) {
+        main.innerHTML = `<div class="panel"><p class="err">Failed to load ${view}: ${esc(err.message)}</p></div>`;
+      }
+    }
+
+    async function renderOverview() {
+      const [mods, recs] = await Promise.all([
+        fetchJson('/api/_modules'),
+        fetchJson('/api/orders'),
+      ]);
+      const byStage = {};
+      for (const o of recs.orders) byStage[o.stage] = (byStage[o.stage] || 0) + 1;
+
+      main.innerHTML = `
+        <h1>Overview</h1>
+        <p class="panel-sub">Live view of the Grove projection and event log.</p>
+        <div class="panel">
+          <h2>Modules</h2>
+          <div class="meta-grid">
+            ${mods.modules.map(m => `<dt>${esc(m)}</dt><dd>aggregate root with state machine, invariants, ${getActions(m)} actions</dd>`).join('')}
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Records by stage</h2>
+          ${Object.entries(byStage).map(([s, c]) => `<span class="pill pill-${s}" style="margin-right:8px">${esc(s)}: ${c}</span>`).join('') || '<span style="color:var(--dim)">none</span>'}
+        </div>
+        <div class="panel">
+          <h2>What this console shows</h2>
+          <p style="color:var(--dim);font-size:13px;line-height:1.6;margin:0">
+            <b style="color:var(--text)">Schema</b> — the typed field metadata Grove generated from <span class="endpoint">module.grove</span>.<br>
+            <b style="color:var(--text)">Records</b> — the SQLite projection rebuilt from the event log.<br>
+            <b style="color:var(--text)">Event log</b> — the immutable, ordered audit trail. Every state transition is a row here.<br>
+          </p>
+        </div>
+      `;
+    }
+
+    function getActions(mod) {
+      return mod === 'order' ? '8 (create, start_cutting, start_assembly, mark_ready, pick_up, cancel, update, delete)' : '?';
+    }
+
+    async function renderSchema() {
+      const s = await fetchJson('/api/order/_schema');
+      main.innerHTML = `
+        <h1>Module: order — schema</h1>
+        <p class="panel-sub">From <span class="endpoint">modules/order/module.grove</span></p>
+        <div class="panel">
+          <h2>Fields</h2>
+          <table>
+            <thead><tr><th>Field</th><th>Type</th><th>Flags</th></tr></thead>
+            <tbody>
+              ${s.fields.map(f => `
+                <tr>
+                  <td>${esc(f.name)}</td>
+                  <td><span class="field-type">${esc(f.type)}</span>${f.enum_variants ? `<div class="field-flag">${f.enum_variants.map(esc).join(', ')}</div>` : ''}</td>
+                  <td><span class="field-flag">${[f.searchable && 'searchable', f.sensitivity, f.relation].filter(Boolean).join(', ') || '—'}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function renderRecords() {
+      const r = await fetchJson('/api/order/records');
+      main.innerHTML = `
+        <h1>Records — order</h1>
+        <p class="panel-sub">${r.items.length} record(s). Click any row to expand.</p>
+        <div class="panel" style="padding:0;overflow:hidden">
+          <table>
+            <thead><tr><th>ID</th><th>Customer</th><th>Stage</th><th>Frame</th><th>Pickup</th></tr></thead>
+            <tbody id="records-body">
+              ${r.items.map((it, i) => `
+                <tr data-i="${i}" style="cursor:pointer">
+                  <td><span class="endpoint">${esc(it.id.slice(0, 16))}…</span></td>
+                  <td>${esc(it.record.customer_name)}</td>
+                  <td><span class="pill pill-${esc(it.record.stage)}">${esc(it.record.stage)}</span></td>
+                  <td>${esc(it.record.frame_style || '—')}</td>
+                  <td>${esc(it.record.estimated_pickup_date || '')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div id="record-detail"></div>
+      `;
+      const items = r.items;
+      document.getElementById('records-body').addEventListener('click', e => {
+        const tr = e.target.closest('tr[data-i]');
+        if (!tr) return;
+        const it = items[+tr.dataset.i];
+        document.getElementById('record-detail').innerHTML = `
+          <div class="panel">
+            <h2>${esc(it.record.customer_name)} — full record</h2>
+            <pre>${pretty(it.record)}</pre>
+          </div>
+        `;
+      });
+    }
+
+    async function renderEvents() {
+      // No direct events endpoint via the dev mode; we hit a custom serve.py endpoint.
+      const e = await fetchJson('/api/_events');
+      main.innerHTML = `
+        <h1>Event log — order</h1>
+        <p class="panel-sub">${e.events.length} event(s). Append-only, ordered by (resource, aggregate_id, stream_version). This is the source of truth — records are projected from these.</p>
+        <div class="panel events-block" style="padding:0;overflow:hidden">
+          ${e.events.map(ev => `
+            <div class="event-row">
+              <span class="stream-v">v${ev.stream_version}</span>
+              <span class="event-agg">${esc(ev.aggregate_id.slice(0, 24))}…</span>
+              <span class="event-name">${esc(ev.event_name)}</span>
+              <span class="event-payload" title="${esc(JSON.stringify(ev.payload))}">${esc(JSON.stringify(ev.payload))}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    async function renderHealth() {
+      const results = {};
+      for (const [name, url] of [
+        ["serve.py (this server)",   "/healthz"],
+        ["grove writes (:3000)",     "/api/_modules"], // proxy
+        ["grove dev (:3010)",        "/api/_modules"], // proxy
+      ]) {
+        try {
+          const r = await fetch(url);
+          results[name] = `${r.status} ${r.ok ? 'OK' : 'FAIL'}`;
+        } catch (e) { results[name] = `unreachable (${e.message})`; }
+      }
+      main.innerHTML = `
+        <h1>Server status</h1>
+        <div class="panel">
+          <h2>Health</h2>
+          <dl class="meta-grid">
+            ${Object.entries(results).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}
+          </dl>
+        </div>
+      `;
+    }
+
+    render('overview');
+  </script>
+</body>
+</html>

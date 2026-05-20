@@ -1,0 +1,341 @@
+// A framing order. Replaces the 3-copy paper ticket.
+//
+// The state machine below is the whole point of this app: it formalizes
+// the handoff between the order taker (Phil) and the framer in the back.
+// Once an order leaves intake, the framer always has a complete spec.
+
+// Stages of a frame order, in order. The only branch is intake -> cancelled.
+enum Stage {
+  intake,
+  cutting_materials,
+  assembly,
+  ready_for_pickup,
+  picked_up,
+  cancelled
+}
+
+// Glass options offered at the counter.
+enum GlassType {
+  regular,
+  museum,
+  anti_glare,
+  uv,
+  conservation
+}
+
+// How the artwork is held inside the frame.
+enum MountingType {
+  float,
+  dry_mount,
+  hinge,
+  other
+}
+
+record {
+  kind "ord"
+
+  // Customer (denormalized into the order for v1; promote to a separate
+  // customer module once Phil wants repeat-customer tracking).
+  customer_name: String
+  customer_phone: String
+  customer_email: String?
+
+  // Frame spec.
+  frame_style: String
+  frame_color: String
+  frame_width_in: Decimal
+  frame_height_in: Decimal
+
+  // Mat spec is free text for v1. Phil's mats can be multi-layer with
+  // window cutouts. No structured schema until we have framer feedback.
+  mat_spec: String?
+
+  glass_type: GlassType = GlassType.regular
+  mounting_type: MountingType = MountingType.float
+
+  // Artwork dimensions and a photo of the piece itself. The photo is the
+  // single most valuable field for the framer: he sees the art before
+  // unwrapping it.
+  artwork_width_in: Decimal
+  artwork_height_in: Decimal
+  artwork_photo_url: String?
+
+  // Special instructions for the framer.
+  notes: String?
+
+  // Pickup target communicated to the customer at intake.
+  estimated_pickup_date: String
+
+  // Money. Deposit is taken at intake; final balance is recorded at pickup.
+  // No payment processing in v1: Phil handles money outside the app.
+  deposit_amount: Decimal = 0
+  final_balance: Decimal?
+
+  // Lifecycle. Default starts at intake when the order is created.
+  stage: Stage = Stage.intake
+
+  invariant customer_name_present {
+    record.customer_name != ""
+  }
+
+  invariant customer_phone_present {
+    record.customer_phone != ""
+  }
+
+  invariant frame_dimensions_positive {
+    record.frame_width_in > 0 && record.frame_height_in > 0
+  }
+
+  invariant artwork_dimensions_positive {
+    record.artwork_width_in > 0 && record.artwork_height_in > 0
+  }
+
+  // The handoff invariant: no work begins without a deposit recorded.
+  invariant deposit_required_after_intake {
+    record.stage == Stage.intake || record.stage == Stage.cancelled || record.deposit_amount > 0
+  }
+
+  // Pickup requires a final balance to be recorded, even if it's zero.
+  invariant final_balance_required_for_pickup {
+    record.stage != Stage.picked_up || record.final_balance != null
+  }
+
+  state stage {
+    Stage.intake             -> Stage.cutting_materials on started_cutting
+    Stage.intake             -> Stage.cancelled         on cancelled
+    Stage.cutting_materials  -> Stage.assembly          on started_assembly
+    Stage.cutting_materials  -> Stage.cancelled         on cancelled
+    Stage.assembly           -> Stage.ready_for_pickup  on marked_ready
+    Stage.assembly           -> Stage.cancelled         on cancelled
+    Stage.ready_for_pickup   -> Stage.picked_up         on picked_up
+  }
+}
+
+validate customer_present {
+  params.customer_name != "" && params.customer_phone != ""
+}
+
+validate frame_dimensions_positive {
+  params.frame_width_in > 0 && params.frame_height_in > 0
+}
+
+validate artwork_dimensions_positive {
+  params.artwork_width_in > 0 && params.artwork_height_in > 0
+}
+
+// Fired when Phil writes up a new order at the counter.
+event created {
+  customer_name: String
+  customer_phone: String
+  customer_email: String?
+  frame_style: String
+  frame_color: String
+  frame_width_in: Decimal
+  frame_height_in: Decimal
+  mat_spec: String?
+  glass_type: GlassType?
+  mounting_type: MountingType?
+  artwork_width_in: Decimal
+  artwork_height_in: Decimal
+  artwork_photo_url: String?
+  notes: String?
+  estimated_pickup_date: String
+  deposit_amount: Decimal?
+}
+
+// Fired when the framer starts cutting materials.
+event started_cutting {
+  stage: String
+  deposit_amount: Decimal
+}
+
+// Fired when materials are cut and assembly begins.
+event started_assembly {
+  stage: String
+}
+
+// Fired when the frame is built and waiting on the pickup shelf.
+event marked_ready {
+  stage: String
+}
+
+// Fired when the customer picks the order up and pays the balance.
+event picked_up {
+  stage: String
+  final_balance: Decimal
+}
+
+// Fired when an order is cancelled at any pre-pickup stage.
+event cancelled {
+  stage: String
+  reason: String?
+}
+
+// Fired when Phil edits an order during intake (typos, dimension corrections).
+event updated {
+  customer_name: String?
+  customer_phone: String?
+  customer_email: String?
+  frame_style: String?
+  frame_color: String?
+  frame_width_in: Decimal?
+  frame_height_in: Decimal?
+  mat_spec: String?
+  glass_type: GlassType?
+  mounting_type: MountingType?
+  artwork_width_in: Decimal?
+  artwork_height_in: Decimal?
+  artwork_photo_url: String?
+  notes: String?
+  estimated_pickup_date: String?
+  deposit_amount: Decimal?
+}
+
+// Fired on hard-delete (only used in dev/seed reset; soft cancel is preferred).
+event deleted {}
+
+// Create a new frame order. Called from the intake form.
+@create
+action create {
+  customer_name: String
+  customer_phone: String
+  customer_email: String?
+  frame_style: String
+  frame_color: String
+  frame_width_in: Decimal
+  frame_height_in: Decimal
+  mat_spec: String?
+  glass_type: GlassType?
+  mounting_type: MountingType?
+  artwork_width_in: Decimal
+  artwork_height_in: Decimal
+  artwork_photo_url: String?
+  notes: String?
+  estimated_pickup_date: String
+  deposit_amount: Decimal?
+
+  validate customer_present
+  validate frame_dimensions_positive
+  validate artwork_dimensions_positive
+
+  apply {
+    emit created {
+      customer_name: params.customer_name
+      customer_phone: params.customer_phone
+      customer_email: params.customer_email
+      frame_style: params.frame_style
+      frame_color: params.frame_color
+      frame_width_in: params.frame_width_in
+      frame_height_in: params.frame_height_in
+      mat_spec: params.mat_spec
+      glass_type: params.glass_type
+      mounting_type: params.mounting_type
+      artwork_width_in: params.artwork_width_in
+      artwork_height_in: params.artwork_height_in
+      artwork_photo_url: params.artwork_photo_url
+      notes: params.notes
+      estimated_pickup_date: params.estimated_pickup_date
+      deposit_amount: params.deposit_amount
+    }
+  }
+}
+
+// Framer begins cutting. Requires a deposit per the invariant.
+action start_cutting {
+  apply {
+    emit started_cutting {
+      stage: "cutting_materials"
+      deposit_amount: record.deposit_amount
+    }
+  }
+}
+
+// Materials are cut; assembly begins.
+action start_assembly {
+  apply {
+    emit started_assembly {
+      stage: "assembly"
+    }
+  }
+}
+
+// Frame is assembled and on the pickup shelf.
+action mark_ready {
+  apply {
+    emit marked_ready {
+      stage: "ready_for_pickup"
+    }
+  }
+}
+
+// Customer picked up the order; record what they paid on the balance.
+action pick_up {
+  final_balance: Decimal
+
+  apply {
+    emit picked_up {
+      stage: "picked_up"
+      final_balance: params.final_balance
+    }
+  }
+}
+
+// Cancel an order at any pre-pickup stage.
+action cancel {
+  reason: String?
+
+  apply {
+    emit cancelled {
+      stage: "cancelled"
+      reason: params.reason
+    }
+  }
+}
+
+// Patch fields during intake or correction (does not transition state).
+action update {
+  customer_name: String?
+  customer_phone: String?
+  customer_email: String?
+  frame_style: String?
+  frame_color: String?
+  frame_width_in: Decimal?
+  frame_height_in: Decimal?
+  mat_spec: String?
+  glass_type: GlassType?
+  mounting_type: MountingType?
+  artwork_width_in: Decimal?
+  artwork_height_in: Decimal?
+  artwork_photo_url: String?
+  notes: String?
+  estimated_pickup_date: String?
+  deposit_amount: Decimal?
+
+  apply {
+    emit updated {
+      customer_name: params.customer_name
+      customer_phone: params.customer_phone
+      customer_email: params.customer_email
+      frame_style: params.frame_style
+      frame_color: params.frame_color
+      frame_width_in: params.frame_width_in
+      frame_height_in: params.frame_height_in
+      mat_spec: params.mat_spec
+      glass_type: params.glass_type
+      mounting_type: params.mounting_type
+      artwork_width_in: params.artwork_width_in
+      artwork_height_in: params.artwork_height_in
+      artwork_photo_url: params.artwork_photo_url
+      notes: params.notes
+      estimated_pickup_date: params.estimated_pickup_date
+      deposit_amount: params.deposit_amount
+    }
+  }
+}
+
+@delete
+action delete {
+  apply {
+    emit deleted {}
+  }
+}

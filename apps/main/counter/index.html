@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Framing — Counter</title>
+  <link rel="stylesheet" href="/assets/counter.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/counter/" class="logo">Framing<span class="logo-sub">counter dashboard</span></a>
+      <a href="/counter/intake.html" class="btn btn-primary">+ New order</a>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">Orders</h1>
+    <p class="page-sub">Active work, pickups waiting, and recently closed orders.</p>
+
+    <div class="board">
+      <section class="board-col">
+        <header class="board-col-head">
+          <div class="board-col-title">Active</div>
+          <div class="board-col-count" id="count-active">0</div>
+        </header>
+        <div class="board-col-scroll" id="col-active"></div>
+      </section>
+      <section class="board-col">
+        <header class="board-col-head">
+          <div class="board-col-title">Ready for pickup</div>
+          <div class="board-col-count" id="count-ready">0</div>
+        </header>
+        <div class="board-col-scroll" id="col-ready"></div>
+      </section>
+      <section class="board-col">
+        <header class="board-col-head">
+          <div class="board-col-title">Recently closed</div>
+          <div class="board-col-count" id="count-closed">0</div>
+        </header>
+        <div class="board-col-scroll" id="col-closed"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/assets/counter.js"></script>
+  <script>
+    CounterDashboard.mount();
+  </script>
+</body>
+</html>

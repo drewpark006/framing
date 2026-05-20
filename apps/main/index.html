@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Framing — Active Orders</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="logo">Framing<span class="logo-sub">order handoff</span></a>
+      <a href="/new.html" class="btn btn-primary" style="min-height:44px;padding:0 16px;font-size:15px">+ New</a>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">Orders</h1>
+    <p class="page-sub" id="order-count">Loading…</p>
+
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-tab active" data-filter="active">Active</button>
+      <button class="filter-tab" data-filter="ready_for_pickup">Ready</button>
+      <button class="filter-tab" data-filter="picked_up">Picked up</button>
+      <button class="filter-tab" data-filter="cancelled">Cancelled</button>
+      <button class="filter-tab" data-filter="all">All</button>
+    </div>
+
+    <div class="orders" id="orders"></div>
+  </main>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    OrdersList.mount();
+  </script>
+</body>
+</html>
