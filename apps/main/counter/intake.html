@@ -3,147 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>New Order — Counter</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>New ticket — Counter</title>
   <link rel="stylesheet" href="/assets/counter.css">
 </head>
-<body>
-  <header class="site-header">
-    <div class="header-inner">
-      <a href="/counter/" class="logo">Framing<span class="logo-sub">new order</span></a>
-      <a href="/counter/" class="btn btn-secondary btn-sm">Cancel</a>
+<body class="pos-body">
+  <header class="pos-header">
+    <a href="/counter/" class="pos-logo">Framing<span class="pos-logo-sub">new ticket</span></a>
+    <div class="pos-header-actions">
+      <button id="scan-btn" type="button" class="btn btn-ghost btn-sm">Scan ticket</button>
+      <a href="/counter/" class="btn btn-ghost btn-sm">Cancel</a>
     </div>
   </header>
 
-  <main>
-    <h1 class="page-title">New Order</h1>
-    <p class="page-sub">Replaces the paper ticket. Framer sees this the moment you save.</p>
-
-    <form id="intake-form" class="intake-grid">
-
-      <section class="intake-section span-6">
-        <h2 class="intake-section-title">Customer</h2>
-        <div class="field-grid">
-          <div class="form-group full">
-            <label for="customer_name">Name</label>
-            <input id="customer_name" name="customer_name" type="text" required autocomplete="name">
-          </div>
-          <div class="form-group">
-            <label for="customer_phone">Phone</label>
-            <input id="customer_phone" name="customer_phone" type="tel" inputmode="tel" required autocomplete="tel">
-          </div>
-          <div class="form-group">
-            <label for="customer_email">Email (optional)</label>
-            <input id="customer_email" name="customer_email" type="email" autocomplete="email">
-          </div>
-        </div>
-      </section>
-
-      <section class="intake-section span-6">
-        <h2 class="intake-section-title">Frame</h2>
-        <div class="field-grid">
-          <div class="form-group full">
-            <label for="frame_style">Style</label>
-            <input id="frame_style" name="frame_style" type="text" required placeholder="e.g. Larson-Juhl Brittney 1.5 in">
-          </div>
-          <div class="form-group full">
-            <label for="frame_color">Color / Finish</label>
-            <input id="frame_color" name="frame_color" type="text" required placeholder="e.g. matte black">
-          </div>
-          <div class="form-group">
-            <label for="frame_width_in">Width (in)</label>
-            <input id="frame_width_in" name="frame_width_in" type="number" step="0.125" inputmode="decimal" required>
-          </div>
-          <div class="form-group">
-            <label for="frame_height_in">Height (in)</label>
-            <input id="frame_height_in" name="frame_height_in" type="number" step="0.125" inputmode="decimal" required>
-          </div>
-        </div>
-      </section>
-
-      <section class="intake-section span-6">
-        <h2 class="intake-section-title">Mat</h2>
-        <div class="form-group">
-          <label for="mat_spec">Mat (optional, free text)</label>
-          <textarea id="mat_spec" name="mat_spec" placeholder='e.g. double mat, ivory top, sage bottom, 2" reveal'></textarea>
-        </div>
-      </section>
-
-      <section class="intake-section span-6">
-        <h2 class="intake-section-title">Glass &amp; mounting</h2>
-        <div class="field-grid">
-          <div class="form-group">
-            <label for="glass_type">Glass</label>
-            <select id="glass_type" name="glass_type">
-              <option value="regular">Regular</option>
-              <option value="museum">Museum</option>
-              <option value="anti_glare">Anti-glare</option>
-              <option value="uv">UV</option>
-              <option value="conservation">Conservation</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="mounting_type">Mounting</label>
-            <select id="mounting_type" name="mounting_type">
-              <option value="float">Float</option>
-              <option value="dry_mount">Dry mount</option>
-              <option value="hinge">Hinge</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-        </div>
-      </section>
-
-      <section class="intake-section span-12">
-        <h2 class="intake-section-title">Artwork</h2>
-        <div class="artwork-row">
-          <div class="form-group">
-            <label for="artwork_width_in">Width (in)</label>
-            <input id="artwork_width_in" name="artwork_width_in" type="number" step="0.125" inputmode="decimal" required>
-          </div>
-          <div class="form-group">
-            <label for="artwork_height_in">Height (in)</label>
-            <input id="artwork_height_in" name="artwork_height_in" type="number" step="0.125" inputmode="decimal" required>
-          </div>
-          <div class="photo-slot">
-            <label for="artwork_photo">Photo</label>
-            <input id="artwork_photo" name="artwork_photo" type="file" accept="image/*" capture="environment">
-            <img id="photo-preview" class="photo-preview" hidden>
-            <div id="photo-placeholder" class="photo-preview empty-photo">No photo yet</div>
-            <input type="hidden" id="artwork_photo_url" name="artwork_photo_url">
-            <p class="help">So the framer sees the piece before unwrapping it.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="intake-section span-6">
-        <h2 class="intake-section-title">Schedule &amp; deposit</h2>
-        <div class="field-grid">
-          <div class="form-group">
-            <label for="estimated_pickup_date">Estimated pickup</label>
-            <input id="estimated_pickup_date" name="estimated_pickup_date" type="date" required>
-          </div>
-          <div class="form-group">
-            <label for="deposit_amount">Deposit taken ($)</label>
-            <input id="deposit_amount" name="deposit_amount" type="number" step="1" inputmode="decimal" min="0">
-          </div>
-          <p class="help full" style="grid-column:1/-1">Work doesn't start without a deposit. Leave blank if not yet paid.</p>
-        </div>
-      </section>
-
-      <section class="intake-section span-6">
-        <h2 class="intake-section-title">Notes for the framer</h2>
-        <div class="form-group">
-          <label for="notes">Anything special</label>
-          <textarea id="notes" name="notes" placeholder="e.g. customer wants minimal reflection, art is heat-sensitive, kept original receipt under the back"></textarea>
-        </div>
-      </section>
-
-      <div class="form-actions">
-        <a href="/counter/" class="btn btn-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary btn-large">Save order</button>
-      </div>
-    </form>
+  <main class="pos-main" id="intake-root">
+    <!-- CounterIntake renders the two-pane body here. -->
   </main>
+
+  <footer class="pos-footer" id="intake-footer">
+    <div class="pos-footer-summary" id="footer-summary">Total —</div>
+    <div class="pos-footer-actions">
+      <a href="/counter/" class="btn btn-ghost">Cancel order</a>
+      <button id="save-btn" class="btn btn-primary btn-large" disabled>Save ticket</button>
+    </div>
+  </footer>
+
+  <div id="modal-root"></div>
+  <input type="file" id="scan-input" accept="image/*" capture="environment" hidden>
 
   <script src="/assets/counter.js"></script>
   <script>

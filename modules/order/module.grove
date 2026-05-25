@@ -1,10 +1,10 @@
-// A framing order. Replaces the 3-copy paper ticket.
+// A framing order. Digital replacement for Thomson's Art & Frame paper
+// ticket FR-248-3. Schema mirrors the printed form so back-of-house pickup
+// is unambiguous; the state machine formalizes the intake -> pickup handoff.
 //
-// The state machine below is the whole point of this app: it formalizes
-// the handoff between the order taker (Phil) and the framer in the back.
-// Once an order leaves intake, the framer always has a complete spec.
+// This is NOT a POS. No card processing, no inventory. Just the order spec.
+// Customer signature is captured live on the iPad, not on paper.
 
-// Stages of a frame order, in order. The only branch is intake -> cancelled.
 enum Stage {
   intake,
   cutting_materials,
@@ -14,233 +14,485 @@ enum Stage {
   cancelled
 }
 
-// Glass options offered at the counter.
-enum GlassType {
+enum GlassKind {
   regular,
-  museum,
-  anti_glare,
-  uv,
-  conservation
+  non_glare,
+  plexi,
+  acrylic,
+  mirror
 }
 
-// How the artwork is held inside the frame.
-enum MountingType {
-  float,
-  dry_mount,
-  hinge,
-  other
+enum MountKind {
+  dry,
+  wet,
+  museum
+}
+
+enum HangerKind {
+  wire,
+  easel,
+  sawtooth
 }
 
 record {
   kind "ord"
 
-  // Customer (denormalized into the order for v1; promote to a separate
-  // customer module once Phil wants repeat-customer tracking).
+  // Pre-printed sequential ticket number on Phil's paper book. Six-digit
+  // zero-padded string. Assigned by serve.py at create time so the client
+  // can't pick it; grove-server stores it verbatim.
+  ticket_no: String
+
+  // Customer
   customer_name: String
   customer_phone: String
+  customer_address: String?
+  customer_zip: String?
+  // Not on the paper ticket but kept for the legacy phone form factor.
   customer_email: String?
 
-  // Frame spec.
-  frame_style: String
-  frame_color: String
-  frame_width_in: Decimal
-  frame_height_in: Decimal
+  // Dates (ISO YYYY-MM-DD).
+  date_received: String
+  date_promised: String
 
-  // Mat spec is free text for v1. Phil's mats can be multi-layer with
-  // window cutouts. No structured schema until we have framer feedback.
-  mat_spec: String?
+  // Job description + insurance value the customer declared.
+  description_of_item: String
+  declared_value: Decimal?
 
-  glass_type: GlassType = GlassType.regular
-  mounting_type: MountingType = MountingType.float
+  // FRAME line item
+  frame_size: String
+  frame_molding_no: String?
+  frame_feet: Decimal?
+  frame_price_per_foot: Decimal?
+  frame_amount: Decimal = 0
 
-  // Artwork dimensions and a photo of the piece itself. The photo is the
-  // single most valuable field for the framer: he sees the art before
-  // unwrapping it.
-  artwork_width_in: Decimal
-  artwork_height_in: Decimal
+  // LINER line item (optional)
+  liner_size: String?
+  liner_no: String?
+  liner_feet: Decimal?
+  liner_price_per_foot: Decimal?
+  liner_amount: Decimal = 0
+
+  // MAT #1
+  mat1_type: String?
+  mat1_color: String?
+  mat1_margin_top_in: Decimal?
+  mat1_margin_sides_in: Decimal?
+  mat1_margin_bottom_in: Decimal?
+  mat1_amount: Decimal = 0
+
+  // MAT #2 (optional)
+  mat2_type: String?
+  mat2_color: String?
+  mat2_margin_top_in: Decimal?
+  mat2_margin_sides_in: Decimal?
+  mat2_margin_bottom_in: Decimal?
+  mat2_amount: Decimal = 0
+
+  // GLASS
+  glass_kind: GlassKind = GlassKind.regular
+  glass_amount: Decimal = 0
+
+  // MOUNT
+  mount_kind: MountKind = MountKind.dry
+  mount_backer_type: String?
+  mount_amount: Decimal = 0
+
+  // HANGER
+  hanger_kind: HangerKind = HangerKind.wire
+  hanger_amount: Decimal = 0
+
+  // MISC SERVICES (toggles + one amount)
+  service_stretch: Bool = false
+  service_repair: Bool = false
+  service_block: Bool = false
+  service_fitting: Bool = false
+  services_amount: Decimal = 0
+
+  // MISC SUPPLIES (free text + amount)
+  misc_supplies: String?
+  misc_supplies_amount: Decimal = 0
+
+  // Framer-facing notes.
+  special_instructions: String?
+
+  // Totals (client-computed; balance_due invariant enforced below).
+  subtotal: Decimal = 0
+  tax_amount: Decimal = 0
+  total: Decimal = 0
+  deposit_amount: Decimal = 0
+  balance_due: Decimal = 0
+
+  // Customer signature captured on iPad after the customer has reviewed
+  // the ticket. PNG data URL.
+  customer_signature_png: String?
+  customer_signed_at: String?
+
+  // Artwork photo. Not on paper but the single highest-value field for
+  // the back-of-house framer.
   artwork_photo_url: String?
 
-  // Special instructions for the framer.
-  notes: String?
-
-  // Pickup target communicated to the customer at intake.
-  estimated_pickup_date: String
-
-  // Money. Deposit is taken at intake; final balance is recorded at pickup.
-  // No payment processing in v1: Phil handles money outside the app.
-  deposit_amount: Decimal = 0
-  final_balance: Decimal?
-
-  // Lifecycle. Default starts at intake when the order is created.
+  // Lifecycle.
   stage: Stage = Stage.intake
 
-  invariant customer_name_present {
-    record.customer_name != ""
+  invariant ticket_no_present {
+    record.ticket_no != ""
   }
 
-  invariant customer_phone_present {
-    record.customer_phone != ""
+  invariant customer_present {
+    record.customer_name != "" && record.customer_phone != ""
   }
 
-  invariant frame_dimensions_positive {
-    record.frame_width_in > 0 && record.frame_height_in > 0
+  invariant dates_set {
+    record.date_received != "" && record.date_promised != ""
   }
 
-  invariant artwork_dimensions_positive {
-    record.artwork_width_in > 0 && record.artwork_height_in > 0
+  invariant description_present {
+    record.description_of_item != ""
   }
 
-  // The handoff invariant: no work begins without a deposit recorded.
+  invariant frame_size_present {
+    record.frame_size != ""
+  }
+
+  invariant totals_non_negative {
+    record.subtotal >= 0 && record.tax_amount >= 0 &&
+    record.total >= 0 && record.deposit_amount >= 0 && record.balance_due >= 0
+  }
+
+  // Deposit must be recorded before work begins.
   invariant deposit_required_after_intake {
-    record.stage == Stage.intake || record.stage == Stage.cancelled || record.deposit_amount > 0
+    record.stage == Stage.intake || record.stage == Stage.cancelled ||
+    record.deposit_amount > 0
   }
 
-  // Pickup requires a final balance to be recorded, even if it's zero.
+  // At pickup the balance must be zero (Phil bumps deposit up to total).
+  // Uses <= since Decimal == Int gives false in Grove's type system; combined
+  // with totals_non_negative (balance_due >= 0) this is equivalent to == 0.
   invariant final_balance_required_for_pickup {
-    record.stage != Stage.picked_up || record.final_balance != null
+    record.stage != Stage.picked_up || record.balance_due <= 0
   }
 
   state stage {
     Stage.intake             -> Stage.cutting_materials on started_cutting
     Stage.intake             -> Stage.cancelled         on cancelled
+    Stage.cutting_materials  -> Stage.intake            on reverted_to_intake
     Stage.cutting_materials  -> Stage.assembly          on started_assembly
     Stage.cutting_materials  -> Stage.cancelled         on cancelled
+    Stage.assembly           -> Stage.cutting_materials on reverted_to_cutting
     Stage.assembly           -> Stage.ready_for_pickup  on marked_ready
     Stage.assembly           -> Stage.cancelled         on cancelled
+    Stage.ready_for_pickup   -> Stage.assembly          on reverted_to_assembly
     Stage.ready_for_pickup   -> Stage.picked_up         on picked_up
+    Stage.picked_up          -> Stage.ready_for_pickup  on reverted_pickup
   }
+}
+
+validate ticket_no_present {
+  params.ticket_no != ""
 }
 
 validate customer_present {
   params.customer_name != "" && params.customer_phone != ""
 }
 
-validate frame_dimensions_positive {
-  params.frame_width_in > 0 && params.frame_height_in > 0
+validate dates_set {
+  params.date_received != "" && params.date_promised != ""
 }
 
-validate artwork_dimensions_positive {
-  params.artwork_width_in > 0 && params.artwork_height_in > 0
+validate description_present {
+  params.description_of_item != ""
+}
+
+validate frame_size_present {
+  params.frame_size != ""
 }
 
 // Fired when Phil writes up a new order at the counter.
 event created {
+  ticket_no: String
   customer_name: String
   customer_phone: String
+  customer_address: String?
+  customer_zip: String?
   customer_email: String?
-  frame_style: String
-  frame_color: String
-  frame_width_in: Decimal
-  frame_height_in: Decimal
-  mat_spec: String?
-  glass_type: GlassType?
-  mounting_type: MountingType?
-  artwork_width_in: Decimal
-  artwork_height_in: Decimal
-  artwork_photo_url: String?
-  notes: String?
-  estimated_pickup_date: String
+  date_received: String
+  date_promised: String
+  description_of_item: String
+  declared_value: Decimal?
+  frame_size: String
+  frame_molding_no: String?
+  frame_feet: Decimal?
+  frame_price_per_foot: Decimal?
+  frame_amount: Decimal?
+  liner_size: String?
+  liner_no: String?
+  liner_feet: Decimal?
+  liner_price_per_foot: Decimal?
+  liner_amount: Decimal?
+  mat1_type: String?
+  mat1_color: String?
+  mat1_margin_top_in: Decimal?
+  mat1_margin_sides_in: Decimal?
+  mat1_margin_bottom_in: Decimal?
+  mat1_amount: Decimal?
+  mat2_type: String?
+  mat2_color: String?
+  mat2_margin_top_in: Decimal?
+  mat2_margin_sides_in: Decimal?
+  mat2_margin_bottom_in: Decimal?
+  mat2_amount: Decimal?
+  glass_kind: GlassKind?
+  glass_amount: Decimal?
+  mount_kind: MountKind?
+  mount_backer_type: String?
+  mount_amount: Decimal?
+  hanger_kind: HangerKind?
+  hanger_amount: Decimal?
+  service_stretch: Bool?
+  service_repair: Bool?
+  service_block: Bool?
+  service_fitting: Bool?
+  services_amount: Decimal?
+  misc_supplies: String?
+  misc_supplies_amount: Decimal?
+  special_instructions: String?
+  subtotal: Decimal?
+  tax_amount: Decimal?
+  total: Decimal?
   deposit_amount: Decimal?
+  balance_due: Decimal?
+  customer_signature_png: String?
+  customer_signed_at: String?
+  artwork_photo_url: String?
 }
 
-// Fired when the framer starts cutting materials.
+// Stage-transition events. Each carries the new stage in the payload.
 event started_cutting {
   stage: String
   deposit_amount: Decimal
 }
 
-// Fired when materials are cut and assembly begins.
 event started_assembly {
   stage: String
 }
 
-// Fired when the frame is built and waiting on the pickup shelf.
 event marked_ready {
   stage: String
 }
 
-// Fired when the customer picks the order up and pays the balance.
 event picked_up {
   stage: String
-  final_balance: Decimal
+  balance_due: Decimal
 }
 
-// Fired when an order is cancelled at any pre-pickup stage.
 event cancelled {
   stage: String
   reason: String?
 }
 
-// Fired when Phil edits an order during intake (typos, dimension corrections).
+event reverted_to_intake {
+  stage: String
+}
+
+event reverted_to_cutting {
+  stage: String
+}
+
+event reverted_to_assembly {
+  stage: String
+}
+
+event reverted_pickup {
+  stage: String
+}
+
+// Field-patch event used during intake/correction (no state transition).
 event updated {
   customer_name: String?
   customer_phone: String?
+  customer_address: String?
+  customer_zip: String?
   customer_email: String?
-  frame_style: String?
-  frame_color: String?
-  frame_width_in: Decimal?
-  frame_height_in: Decimal?
-  mat_spec: String?
-  glass_type: GlassType?
-  mounting_type: MountingType?
-  artwork_width_in: Decimal?
-  artwork_height_in: Decimal?
-  artwork_photo_url: String?
-  notes: String?
-  estimated_pickup_date: String?
+  date_received: String?
+  date_promised: String?
+  description_of_item: String?
+  declared_value: Decimal?
+  frame_size: String?
+  frame_molding_no: String?
+  frame_feet: Decimal?
+  frame_price_per_foot: Decimal?
+  frame_amount: Decimal?
+  liner_size: String?
+  liner_no: String?
+  liner_feet: Decimal?
+  liner_price_per_foot: Decimal?
+  liner_amount: Decimal?
+  mat1_type: String?
+  mat1_color: String?
+  mat1_margin_top_in: Decimal?
+  mat1_margin_sides_in: Decimal?
+  mat1_margin_bottom_in: Decimal?
+  mat1_amount: Decimal?
+  mat2_type: String?
+  mat2_color: String?
+  mat2_margin_top_in: Decimal?
+  mat2_margin_sides_in: Decimal?
+  mat2_margin_bottom_in: Decimal?
+  mat2_amount: Decimal?
+  glass_kind: GlassKind?
+  glass_amount: Decimal?
+  mount_kind: MountKind?
+  mount_backer_type: String?
+  mount_amount: Decimal?
+  hanger_kind: HangerKind?
+  hanger_amount: Decimal?
+  service_stretch: Bool?
+  service_repair: Bool?
+  service_block: Bool?
+  service_fitting: Bool?
+  services_amount: Decimal?
+  misc_supplies: String?
+  misc_supplies_amount: Decimal?
+  special_instructions: String?
+  subtotal: Decimal?
+  tax_amount: Decimal?
+  total: Decimal?
   deposit_amount: Decimal?
+  balance_due: Decimal?
+  customer_signature_png: String?
+  customer_signed_at: String?
+  artwork_photo_url: String?
 }
 
-// Fired on hard-delete (only used in dev/seed reset; soft cancel is preferred).
 event deleted {}
 
-// Create a new frame order. Called from the intake form.
+// Create a new frame order. Called from the intake form / scan flow.
 @create
 action create {
+  ticket_no: String
   customer_name: String
   customer_phone: String
+  customer_address: String?
+  customer_zip: String?
   customer_email: String?
-  frame_style: String
-  frame_color: String
-  frame_width_in: Decimal
-  frame_height_in: Decimal
-  mat_spec: String?
-  glass_type: GlassType?
-  mounting_type: MountingType?
-  artwork_width_in: Decimal
-  artwork_height_in: Decimal
-  artwork_photo_url: String?
-  notes: String?
-  estimated_pickup_date: String
+  date_received: String
+  date_promised: String
+  description_of_item: String
+  declared_value: Decimal?
+  frame_size: String
+  frame_molding_no: String?
+  frame_feet: Decimal?
+  frame_price_per_foot: Decimal?
+  frame_amount: Decimal?
+  liner_size: String?
+  liner_no: String?
+  liner_feet: Decimal?
+  liner_price_per_foot: Decimal?
+  liner_amount: Decimal?
+  mat1_type: String?
+  mat1_color: String?
+  mat1_margin_top_in: Decimal?
+  mat1_margin_sides_in: Decimal?
+  mat1_margin_bottom_in: Decimal?
+  mat1_amount: Decimal?
+  mat2_type: String?
+  mat2_color: String?
+  mat2_margin_top_in: Decimal?
+  mat2_margin_sides_in: Decimal?
+  mat2_margin_bottom_in: Decimal?
+  mat2_amount: Decimal?
+  glass_kind: GlassKind?
+  glass_amount: Decimal?
+  mount_kind: MountKind?
+  mount_backer_type: String?
+  mount_amount: Decimal?
+  hanger_kind: HangerKind?
+  hanger_amount: Decimal?
+  service_stretch: Bool?
+  service_repair: Bool?
+  service_block: Bool?
+  service_fitting: Bool?
+  services_amount: Decimal?
+  misc_supplies: String?
+  misc_supplies_amount: Decimal?
+  special_instructions: String?
+  subtotal: Decimal?
+  tax_amount: Decimal?
+  total: Decimal?
   deposit_amount: Decimal?
+  balance_due: Decimal?
+  customer_signature_png: String?
+  customer_signed_at: String?
+  artwork_photo_url: String?
 
+  validate ticket_no_present
   validate customer_present
-  validate frame_dimensions_positive
-  validate artwork_dimensions_positive
+  validate dates_set
+  validate description_present
+  validate frame_size_present
 
   apply {
     emit created {
+      ticket_no: params.ticket_no
       customer_name: params.customer_name
       customer_phone: params.customer_phone
+      customer_address: params.customer_address
+      customer_zip: params.customer_zip
       customer_email: params.customer_email
-      frame_style: params.frame_style
-      frame_color: params.frame_color
-      frame_width_in: params.frame_width_in
-      frame_height_in: params.frame_height_in
-      mat_spec: params.mat_spec
-      glass_type: params.glass_type
-      mounting_type: params.mounting_type
-      artwork_width_in: params.artwork_width_in
-      artwork_height_in: params.artwork_height_in
-      artwork_photo_url: params.artwork_photo_url
-      notes: params.notes
-      estimated_pickup_date: params.estimated_pickup_date
+      date_received: params.date_received
+      date_promised: params.date_promised
+      description_of_item: params.description_of_item
+      declared_value: params.declared_value
+      frame_size: params.frame_size
+      frame_molding_no: params.frame_molding_no
+      frame_feet: params.frame_feet
+      frame_price_per_foot: params.frame_price_per_foot
+      frame_amount: params.frame_amount
+      liner_size: params.liner_size
+      liner_no: params.liner_no
+      liner_feet: params.liner_feet
+      liner_price_per_foot: params.liner_price_per_foot
+      liner_amount: params.liner_amount
+      mat1_type: params.mat1_type
+      mat1_color: params.mat1_color
+      mat1_margin_top_in: params.mat1_margin_top_in
+      mat1_margin_sides_in: params.mat1_margin_sides_in
+      mat1_margin_bottom_in: params.mat1_margin_bottom_in
+      mat1_amount: params.mat1_amount
+      mat2_type: params.mat2_type
+      mat2_color: params.mat2_color
+      mat2_margin_top_in: params.mat2_margin_top_in
+      mat2_margin_sides_in: params.mat2_margin_sides_in
+      mat2_margin_bottom_in: params.mat2_margin_bottom_in
+      mat2_amount: params.mat2_amount
+      glass_kind: params.glass_kind
+      glass_amount: params.glass_amount
+      mount_kind: params.mount_kind
+      mount_backer_type: params.mount_backer_type
+      mount_amount: params.mount_amount
+      hanger_kind: params.hanger_kind
+      hanger_amount: params.hanger_amount
+      service_stretch: params.service_stretch
+      service_repair: params.service_repair
+      service_block: params.service_block
+      service_fitting: params.service_fitting
+      services_amount: params.services_amount
+      misc_supplies: params.misc_supplies
+      misc_supplies_amount: params.misc_supplies_amount
+      special_instructions: params.special_instructions
+      subtotal: params.subtotal
+      tax_amount: params.tax_amount
+      total: params.total
       deposit_amount: params.deposit_amount
+      balance_due: params.balance_due
+      customer_signature_png: params.customer_signature_png
+      customer_signed_at: params.customer_signed_at
+      artwork_photo_url: params.artwork_photo_url
     }
   }
 }
 
-// Framer begins cutting. Requires a deposit per the invariant.
+// Framer begins cutting. Deposit invariant fires here.
 action start_cutting {
   apply {
     emit started_cutting {
@@ -250,7 +502,6 @@ action start_cutting {
   }
 }
 
-// Materials are cut; assembly begins.
 action start_assembly {
   apply {
     emit started_assembly {
@@ -259,7 +510,6 @@ action start_assembly {
   }
 }
 
-// Frame is assembled and on the pickup shelf.
 action mark_ready {
   apply {
     emit marked_ready {
@@ -268,19 +518,17 @@ action mark_ready {
   }
 }
 
-// Customer picked up the order; record what they paid on the balance.
+// Customer picked up. Phil should have zeroed out balance_due via update
+// (bumping deposit_amount to total) before invoking this.
 action pick_up {
-  final_balance: Decimal
-
   apply {
     emit picked_up {
       stage: "picked_up"
-      final_balance: params.final_balance
+      balance_due: record.balance_due
     }
   }
 }
 
-// Cancel an order at any pre-pickup stage.
 action cancel {
   reason: String?
 
@@ -292,43 +540,152 @@ action cancel {
   }
 }
 
-// Patch fields during intake or correction (does not transition state).
+// Reverse-direction actions: undo a stage advance.
+action revert_to_intake {
+  apply {
+    emit reverted_to_intake {
+      stage: "intake"
+    }
+  }
+}
+
+action revert_to_cutting {
+  apply {
+    emit reverted_to_cutting {
+      stage: "cutting_materials"
+    }
+  }
+}
+
+action revert_to_assembly {
+  apply {
+    emit reverted_to_assembly {
+      stage: "assembly"
+    }
+  }
+}
+
+action revert_pickup {
+  apply {
+    emit reverted_pickup {
+      stage: "ready_for_pickup"
+    }
+  }
+}
+
+// Patch fields during intake or correction. No state transition.
 action update {
   customer_name: String?
   customer_phone: String?
+  customer_address: String?
+  customer_zip: String?
   customer_email: String?
-  frame_style: String?
-  frame_color: String?
-  frame_width_in: Decimal?
-  frame_height_in: Decimal?
-  mat_spec: String?
-  glass_type: GlassType?
-  mounting_type: MountingType?
-  artwork_width_in: Decimal?
-  artwork_height_in: Decimal?
-  artwork_photo_url: String?
-  notes: String?
-  estimated_pickup_date: String?
+  date_received: String?
+  date_promised: String?
+  description_of_item: String?
+  declared_value: Decimal?
+  frame_size: String?
+  frame_molding_no: String?
+  frame_feet: Decimal?
+  frame_price_per_foot: Decimal?
+  frame_amount: Decimal?
+  liner_size: String?
+  liner_no: String?
+  liner_feet: Decimal?
+  liner_price_per_foot: Decimal?
+  liner_amount: Decimal?
+  mat1_type: String?
+  mat1_color: String?
+  mat1_margin_top_in: Decimal?
+  mat1_margin_sides_in: Decimal?
+  mat1_margin_bottom_in: Decimal?
+  mat1_amount: Decimal?
+  mat2_type: String?
+  mat2_color: String?
+  mat2_margin_top_in: Decimal?
+  mat2_margin_sides_in: Decimal?
+  mat2_margin_bottom_in: Decimal?
+  mat2_amount: Decimal?
+  glass_kind: GlassKind?
+  glass_amount: Decimal?
+  mount_kind: MountKind?
+  mount_backer_type: String?
+  mount_amount: Decimal?
+  hanger_kind: HangerKind?
+  hanger_amount: Decimal?
+  service_stretch: Bool?
+  service_repair: Bool?
+  service_block: Bool?
+  service_fitting: Bool?
+  services_amount: Decimal?
+  misc_supplies: String?
+  misc_supplies_amount: Decimal?
+  special_instructions: String?
+  subtotal: Decimal?
+  tax_amount: Decimal?
+  total: Decimal?
   deposit_amount: Decimal?
+  balance_due: Decimal?
+  customer_signature_png: String?
+  customer_signed_at: String?
+  artwork_photo_url: String?
 
   apply {
     emit updated {
       customer_name: params.customer_name
       customer_phone: params.customer_phone
+      customer_address: params.customer_address
+      customer_zip: params.customer_zip
       customer_email: params.customer_email
-      frame_style: params.frame_style
-      frame_color: params.frame_color
-      frame_width_in: params.frame_width_in
-      frame_height_in: params.frame_height_in
-      mat_spec: params.mat_spec
-      glass_type: params.glass_type
-      mounting_type: params.mounting_type
-      artwork_width_in: params.artwork_width_in
-      artwork_height_in: params.artwork_height_in
-      artwork_photo_url: params.artwork_photo_url
-      notes: params.notes
-      estimated_pickup_date: params.estimated_pickup_date
+      date_received: params.date_received
+      date_promised: params.date_promised
+      description_of_item: params.description_of_item
+      declared_value: params.declared_value
+      frame_size: params.frame_size
+      frame_molding_no: params.frame_molding_no
+      frame_feet: params.frame_feet
+      frame_price_per_foot: params.frame_price_per_foot
+      frame_amount: params.frame_amount
+      liner_size: params.liner_size
+      liner_no: params.liner_no
+      liner_feet: params.liner_feet
+      liner_price_per_foot: params.liner_price_per_foot
+      liner_amount: params.liner_amount
+      mat1_type: params.mat1_type
+      mat1_color: params.mat1_color
+      mat1_margin_top_in: params.mat1_margin_top_in
+      mat1_margin_sides_in: params.mat1_margin_sides_in
+      mat1_margin_bottom_in: params.mat1_margin_bottom_in
+      mat1_amount: params.mat1_amount
+      mat2_type: params.mat2_type
+      mat2_color: params.mat2_color
+      mat2_margin_top_in: params.mat2_margin_top_in
+      mat2_margin_sides_in: params.mat2_margin_sides_in
+      mat2_margin_bottom_in: params.mat2_margin_bottom_in
+      mat2_amount: params.mat2_amount
+      glass_kind: params.glass_kind
+      glass_amount: params.glass_amount
+      mount_kind: params.mount_kind
+      mount_backer_type: params.mount_backer_type
+      mount_amount: params.mount_amount
+      hanger_kind: params.hanger_kind
+      hanger_amount: params.hanger_amount
+      service_stretch: params.service_stretch
+      service_repair: params.service_repair
+      service_block: params.service_block
+      service_fitting: params.service_fitting
+      services_amount: params.services_amount
+      misc_supplies: params.misc_supplies
+      misc_supplies_amount: params.misc_supplies_amount
+      special_instructions: params.special_instructions
+      subtotal: params.subtotal
+      tax_amount: params.tax_amount
+      total: params.total
       deposit_amount: params.deposit_amount
+      balance_due: params.balance_due
+      customer_signature_png: params.customer_signature_png
+      customer_signed_at: params.customer_signed_at
+      artwork_photo_url: params.artwork_photo_url
     }
   }
 }

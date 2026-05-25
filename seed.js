@@ -6,12 +6,15 @@
 //   node seed.js           # seed
 //
 // Re-running creates duplicates. Delete framing.sqlite to start clean.
+//
+// Note: this script POSTs directly to grove-server (not through serve.py),
+// so ticket_no must be supplied explicitly. Real intakes via the iPad UI
+// get ticket_no auto-assigned by serve.py.
 
 import { callAction } from "./agents/lib/grove.js";
 
 const API = process.env.GROVE_SERVER || "http://127.0.0.1:3000";
 
-// Today (in shop) is taken from system clock; pickup dates are nudged forward.
 function isoDate(daysFromToday) {
   const d = new Date();
   d.setDate(d.getDate() + daysFromToday);
@@ -20,109 +23,105 @@ function isoDate(daysFromToday) {
 
 const ORDERS = [
   {
+    ticket_no: "0045670",
     customer_name: "Margaret Liu",
-    customer_phone: "614-555-0101",
+    customer_phone: "914-555-0101",
+    customer_address: "12 Elm St, White Plains, NY",
+    customer_zip: "10605",
     customer_email: "mliu@example.com",
-    frame_style: "Larson-Juhl Brittney, 1.5 inch",
-    frame_color: "matte black",
-    frame_width_in: "18",
-    frame_height_in: "24",
-    mat_spec: "double mat, ivory top, charcoal bottom, 2 inch reveal",
-    glass_type: "museum",
-    mounting_type: "hinge",
-    artwork_width_in: "14",
-    artwork_height_in: "20",
-    notes: "Pencil sketch from grandfather, fragile edges. No spray. Hinge mount only.",
-    estimated_pickup_date: isoDate(10),
-    deposit_amount: "120",
+    date_received: isoDate(-2),
+    date_promised: isoDate(10),
+    description_of_item: "Pencil sketch from grandfather, fragile edges",
+    declared_value: "350",
+    frame_size: "18 x 24",
+    frame_molding_no: "LJ-372181",
+    frame_feet: "7",
+    frame_price_per_foot: "2.85",
+    frame_amount: "19.95",
+    mat1_type: "double mat",
+    mat1_color: "Ivory",
+    mat1_margin_top_in: "2",
+    mat1_margin_sides_in: "2",
+    mat1_margin_bottom_in: "2.5",
+    mat1_amount: "28.00",
+    mat2_type: "bottom mat",
+    mat2_color: "Charcoal",
+    mat2_amount: "12.00",
+    glass_kind: "non_glare",
+    glass_amount: "45.00",
+    mount_kind: "museum",
+    mount_backer_type: "Acid-free foamcore",
+    mount_amount: "18.00",
+    hanger_kind: "wire",
+    hanger_amount: "4.00",
+    special_instructions: "Pencil sketch from grandfather, fragile edges. No spray. Hinge mount only.",
+    subtotal: "126.95",
+    tax_amount: "10.63",
+    total: "137.58",
+    deposit_amount: "120.00",
+    balance_due: "17.58",
     advance_to: "cutting_materials",
   },
   {
+    ticket_no: "0045671",
     customer_name: "Dave Okonkwo",
-    customer_phone: "614-555-0144",
-    frame_style: "Studio Moulding Vintage 2 inch",
-    frame_color: "walnut stain",
-    frame_width_in: "20",
-    frame_height_in: "16",
-    mat_spec: "single mat, antique white, 1.5 inch",
-    glass_type: "anti_glare",
-    mounting_type: "dry_mount",
-    artwork_width_in: "16",
-    artwork_height_in: "12",
-    notes: "Photo print, 1970s. Customer wants warm tone preserved.",
-    estimated_pickup_date: isoDate(7),
-    deposit_amount: "85",
+    customer_phone: "914-555-0144",
+    date_received: isoDate(-5),
+    date_promised: isoDate(2),
+    description_of_item: "Photo print, 1970s, color tones warm",
+    frame_size: "20 x 16",
+    frame_molding_no: "ST-1011",
+    frame_feet: "6",
+    frame_price_per_foot: "2.10",
+    frame_amount: "12.60",
+    mat1_type: "single mat",
+    mat1_color: "Cream",
+    mat1_margin_top_in: "1.5",
+    mat1_margin_sides_in: "1.5",
+    mat1_margin_bottom_in: "1.5",
+    mat1_amount: "18.00",
+    glass_kind: "non_glare",
+    glass_amount: "32.00",
+    mount_kind: "dry",
+    mount_amount: "10.00",
+    hanger_kind: "sawtooth",
+    hanger_amount: "3.00",
+    special_instructions: "Customer wants warm tone preserved.",
+    subtotal: "75.60",
+    tax_amount: "6.33",
+    total: "81.93",
+    deposit_amount: "40.00",
+    balance_due: "41.93",
     advance_to: "assembly",
   },
   {
+    ticket_no: "0045672",
     customer_name: "Priya Shankar",
-    customer_phone: "614-555-0188",
+    customer_phone: "914-555-0188",
     customer_email: "priya.s@example.com",
-    frame_style: "Roma Modern thin profile, 0.75 inch",
-    frame_color: "polished silver",
-    frame_width_in: "11",
-    frame_height_in: "14",
-    mat_spec: "no mat, float over white backer",
-    glass_type: "uv",
-    mounting_type: "float",
-    artwork_width_in: "8",
-    artwork_height_in: "10",
-    notes: "Diploma. Float so corners are visible.",
-    estimated_pickup_date: isoDate(2),
-    deposit_amount: "60",
+    date_received: isoDate(-7),
+    date_promised: isoDate(-1),
+    description_of_item: "College diploma, float-mounted",
+    frame_size: "11 x 14",
+    frame_molding_no: "MB-100",
+    frame_feet: "4.16",
+    frame_price_per_foot: "1.80",
+    frame_amount: "7.49",
+    glass_kind: "regular",
+    glass_amount: "18.00",
+    mount_kind: "dry",
+    mount_amount: "8.00",
+    hanger_kind: "wire",
+    hanger_amount: "3.00",
+    service_fitting: true,
+    services_amount: "6.00",
+    special_instructions: "Float so corners are visible.",
+    subtotal: "42.49",
+    tax_amount: "3.56",
+    total: "46.05",
+    deposit_amount: "25.00",
+    balance_due: "21.05",
     advance_to: "ready_for_pickup",
-  },
-  {
-    customer_name: "Walt Brennan",
-    customer_phone: "614-555-0173",
-    frame_style: "Custom oak, shop-built, 1.25 inch",
-    frame_color: "natural oak",
-    frame_width_in: "30",
-    frame_height_in: "40",
-    mat_spec: "triple mat, cream / forest / cream, 2.5 inch overall",
-    glass_type: "conservation",
-    mounting_type: "hinge",
-    artwork_width_in: "24",
-    artwork_height_in: "36",
-    notes: "Large oil painting on board. Two-person carry. Customer asked we hold it on the rack with a SOLD tag.",
-    estimated_pickup_date: isoDate(-1),
-    deposit_amount: "260",
-    advance_to: "ready_for_pickup",
-  },
-  {
-    customer_name: "Hank Wallace",
-    customer_phone: "614-555-0119",
-    frame_style: "Plein-air gold, ornate, 3 inch",
-    frame_color: "antique gold leaf",
-    frame_width_in: "16",
-    frame_height_in: "20",
-    mat_spec: "linen liner, oyster",
-    glass_type: "museum",
-    mounting_type: "float",
-    artwork_width_in: "11",
-    artwork_height_in: "14",
-    notes: "Watercolor. Customer paid in full at pickup.",
-    estimated_pickup_date: isoDate(-7),
-    deposit_amount: "150",
-    advance_to: "picked_up",
-    final_balance: "180",
-  },
-  {
-    customer_name: "Eliza Park",
-    customer_phone: "614-555-0102",
-    frame_style: "Larson-Juhl Sebastian, 1 inch",
-    frame_color: "satin white",
-    frame_width_in: "12",
-    frame_height_in: "12",
-    mat_spec: "",
-    glass_type: "regular",
-    mounting_type: "float",
-    artwork_width_in: "8",
-    artwork_height_in: "8",
-    notes: "",
-    estimated_pickup_date: isoDate(5),
-    deposit_amount: "0",
-    advance_to: "intake",
   },
 ];
 
@@ -131,7 +130,6 @@ const TRANSITIONS = {
   cutting_materials: ["start_cutting"],
   assembly: ["start_cutting", "start_assembly"],
   ready_for_pickup: ["start_cutting", "start_assembly", "mark_ready"],
-  picked_up: ["start_cutting", "start_assembly", "mark_ready", "pick_up"],
 };
 
 async function seed() {
@@ -140,8 +138,7 @@ async function seed() {
   let ok = 0, fail = 0;
 
   for (const o of ORDERS) {
-    const { advance_to, final_balance, ...createBody } = o;
-    // Strip empty optional strings so the server uses field defaults.
+    const { advance_to, ...createBody } = o;
     for (const k of Object.keys(createBody)) {
       if (createBody[k] === "") delete createBody[k];
     }
@@ -151,14 +148,12 @@ async function seed() {
       const id = res.record.id;
       const transitions = TRANSITIONS[advance_to] || [];
       for (const t of transitions) {
-        const body = { id };
-        if (t === "pick_up") body.final_balance = final_balance || "0";
-        await callAction(t, body, API);
+        await callAction(t, { id }, API);
       }
-      console.log(`  ✓ ${o.customer_name.padEnd(20)} → ${advance_to}`);
+      console.log(`  ok  #${o.ticket_no}  ${o.customer_name.padEnd(20)} -> ${advance_to}`);
       ok++;
     } catch (e) {
-      console.error(`  ✗ ${o.customer_name}: ${e.message}`);
+      console.error(`  err #${o.ticket_no}  ${o.customer_name}: ${e.message}`);
       fail++;
     }
   }

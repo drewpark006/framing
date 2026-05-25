@@ -68,6 +68,12 @@ if [[ -z "$PYTHON" ]]; then
   exit 1
 fi
 
+# ANTHROPIC_API_KEY enables /api/order/scan_ticket (Phil's paper-ticket OCR).
+# Not fatal if missing — the rest of the app works, just no scan.
+if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+  echo "Note: ANTHROPIC_API_KEY not set — /api/order/scan_ticket will return 500."
+fi
+
 # ---------------------------------------------------------------------------
 # Bail early if ports are already in use — don't silently fight an old server
 # ---------------------------------------------------------------------------

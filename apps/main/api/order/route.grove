@@ -3,27 +3,69 @@
 //
 // GET endpoints (list/detail) are served by serve.py reading the projection
 // SQLite directly. Grove handles writes; reads go through the projection.
+//
+// ticket_no on create is injected by serve.py from the projection
+// (next-after-MAX). The client cannot pick it.
 
 route {
   POST create {
     data result {
       invoke order.create {
+        ticket_no: input.body.ticket_no,
         customer_name: input.body.customer_name,
         customer_phone: input.body.customer_phone,
+        customer_address: input.body.customer_address,
+        customer_zip: input.body.customer_zip,
         customer_email: input.body.customer_email,
-        frame_style: input.body.frame_style,
-        frame_color: input.body.frame_color,
-        frame_width_in: input.body.frame_width_in,
-        frame_height_in: input.body.frame_height_in,
-        mat_spec: input.body.mat_spec,
-        glass_type: input.body.glass_type,
-        mounting_type: input.body.mounting_type,
-        artwork_width_in: input.body.artwork_width_in,
-        artwork_height_in: input.body.artwork_height_in,
-        artwork_photo_url: input.body.artwork_photo_url,
-        notes: input.body.notes,
-        estimated_pickup_date: input.body.estimated_pickup_date,
-        deposit_amount: input.body.deposit_amount
+        date_received: input.body.date_received,
+        date_promised: input.body.date_promised,
+        description_of_item: input.body.description_of_item,
+        declared_value: input.body.declared_value,
+        frame_size: input.body.frame_size,
+        frame_molding_no: input.body.frame_molding_no,
+        frame_feet: input.body.frame_feet,
+        frame_price_per_foot: input.body.frame_price_per_foot,
+        frame_amount: input.body.frame_amount,
+        liner_size: input.body.liner_size,
+        liner_no: input.body.liner_no,
+        liner_feet: input.body.liner_feet,
+        liner_price_per_foot: input.body.liner_price_per_foot,
+        liner_amount: input.body.liner_amount,
+        mat1_type: input.body.mat1_type,
+        mat1_color: input.body.mat1_color,
+        mat1_margin_top_in: input.body.mat1_margin_top_in,
+        mat1_margin_sides_in: input.body.mat1_margin_sides_in,
+        mat1_margin_bottom_in: input.body.mat1_margin_bottom_in,
+        mat1_amount: input.body.mat1_amount,
+        mat2_type: input.body.mat2_type,
+        mat2_color: input.body.mat2_color,
+        mat2_margin_top_in: input.body.mat2_margin_top_in,
+        mat2_margin_sides_in: input.body.mat2_margin_sides_in,
+        mat2_margin_bottom_in: input.body.mat2_margin_bottom_in,
+        mat2_amount: input.body.mat2_amount,
+        glass_kind: input.body.glass_kind,
+        glass_amount: input.body.glass_amount,
+        mount_kind: input.body.mount_kind,
+        mount_backer_type: input.body.mount_backer_type,
+        mount_amount: input.body.mount_amount,
+        hanger_kind: input.body.hanger_kind,
+        hanger_amount: input.body.hanger_amount,
+        service_stretch: input.body.service_stretch,
+        service_repair: input.body.service_repair,
+        service_block: input.body.service_block,
+        service_fitting: input.body.service_fitting,
+        services_amount: input.body.services_amount,
+        misc_supplies: input.body.misc_supplies,
+        misc_supplies_amount: input.body.misc_supplies_amount,
+        special_instructions: input.body.special_instructions,
+        subtotal: input.body.subtotal,
+        tax_amount: input.body.tax_amount,
+        total: input.body.total,
+        deposit_amount: input.body.deposit_amount,
+        balance_due: input.body.balance_due,
+        customer_signature_png: input.body.customer_signature_png,
+        customer_signed_at: input.body.customer_signed_at,
+        artwork_photo_url: input.body.artwork_photo_url
       }
     }
   }
@@ -55,8 +97,7 @@ route {
   POST pick_up {
     data result {
       invoke order.pick_up {
-        id: input.body.id,
-        final_balance: input.body.final_balance
+        id: input.body.id
       }
     }
   }
@@ -70,26 +111,96 @@ route {
     }
   }
 
+  POST revert_to_intake {
+    data result {
+      invoke order.revert_to_intake {
+        id: input.body.id
+      }
+    }
+  }
+
+  POST revert_to_cutting {
+    data result {
+      invoke order.revert_to_cutting {
+        id: input.body.id
+      }
+    }
+  }
+
+  POST revert_to_assembly {
+    data result {
+      invoke order.revert_to_assembly {
+        id: input.body.id
+      }
+    }
+  }
+
+  POST revert_pickup {
+    data result {
+      invoke order.revert_pickup {
+        id: input.body.id
+      }
+    }
+  }
+
   POST update {
     data result {
       invoke order.update {
         id: input.body.id,
         customer_name: input.body.customer_name,
         customer_phone: input.body.customer_phone,
+        customer_address: input.body.customer_address,
+        customer_zip: input.body.customer_zip,
         customer_email: input.body.customer_email,
-        frame_style: input.body.frame_style,
-        frame_color: input.body.frame_color,
-        frame_width_in: input.body.frame_width_in,
-        frame_height_in: input.body.frame_height_in,
-        mat_spec: input.body.mat_spec,
-        glass_type: input.body.glass_type,
-        mounting_type: input.body.mounting_type,
-        artwork_width_in: input.body.artwork_width_in,
-        artwork_height_in: input.body.artwork_height_in,
-        artwork_photo_url: input.body.artwork_photo_url,
-        notes: input.body.notes,
-        estimated_pickup_date: input.body.estimated_pickup_date,
-        deposit_amount: input.body.deposit_amount
+        date_received: input.body.date_received,
+        date_promised: input.body.date_promised,
+        description_of_item: input.body.description_of_item,
+        declared_value: input.body.declared_value,
+        frame_size: input.body.frame_size,
+        frame_molding_no: input.body.frame_molding_no,
+        frame_feet: input.body.frame_feet,
+        frame_price_per_foot: input.body.frame_price_per_foot,
+        frame_amount: input.body.frame_amount,
+        liner_size: input.body.liner_size,
+        liner_no: input.body.liner_no,
+        liner_feet: input.body.liner_feet,
+        liner_price_per_foot: input.body.liner_price_per_foot,
+        liner_amount: input.body.liner_amount,
+        mat1_type: input.body.mat1_type,
+        mat1_color: input.body.mat1_color,
+        mat1_margin_top_in: input.body.mat1_margin_top_in,
+        mat1_margin_sides_in: input.body.mat1_margin_sides_in,
+        mat1_margin_bottom_in: input.body.mat1_margin_bottom_in,
+        mat1_amount: input.body.mat1_amount,
+        mat2_type: input.body.mat2_type,
+        mat2_color: input.body.mat2_color,
+        mat2_margin_top_in: input.body.mat2_margin_top_in,
+        mat2_margin_sides_in: input.body.mat2_margin_sides_in,
+        mat2_margin_bottom_in: input.body.mat2_margin_bottom_in,
+        mat2_amount: input.body.mat2_amount,
+        glass_kind: input.body.glass_kind,
+        glass_amount: input.body.glass_amount,
+        mount_kind: input.body.mount_kind,
+        mount_backer_type: input.body.mount_backer_type,
+        mount_amount: input.body.mount_amount,
+        hanger_kind: input.body.hanger_kind,
+        hanger_amount: input.body.hanger_amount,
+        service_stretch: input.body.service_stretch,
+        service_repair: input.body.service_repair,
+        service_block: input.body.service_block,
+        service_fitting: input.body.service_fitting,
+        services_amount: input.body.services_amount,
+        misc_supplies: input.body.misc_supplies,
+        misc_supplies_amount: input.body.misc_supplies_amount,
+        special_instructions: input.body.special_instructions,
+        subtotal: input.body.subtotal,
+        tax_amount: input.body.tax_amount,
+        total: input.body.total,
+        deposit_amount: input.body.deposit_amount,
+        balance_due: input.body.balance_due,
+        customer_signature_png: input.body.customer_signature_png,
+        customer_signed_at: input.body.customer_signed_at,
+        artwork_photo_url: input.body.artwork_photo_url
       }
     }
   }
