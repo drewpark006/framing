@@ -74,6 +74,14 @@ if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
   echo "Note: ANTHROPIC_API_KEY not set — /api/order/scan_ticket will return 500."
 fi
 
+# TWILIO_SID + TWILIO_TOKEN enable the ready-for-pickup SMS. The sender
+# phone number ("twilio_from") lives in shop.json, not env. With any of
+# the three missing/empty, mark_ready still transitions the order — the
+# server log shows a clean [sms skipped] line.
+if [[ -z "${TWILIO_SID:-}" || -z "${TWILIO_TOKEN:-}" ]]; then
+  echo "Note: TWILIO_SID / TWILIO_TOKEN not set — ready-for-pickup SMS disabled."
+fi
+
 # ---------------------------------------------------------------------------
 # Bail early if ports are already in use — don't silently fight an old server
 # ---------------------------------------------------------------------------

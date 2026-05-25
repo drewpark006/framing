@@ -25,50 +25,58 @@ import sys
 import sqlite3
 import json
 import base64
+import threading
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "apps", "main")
 DB_PATH = os.path.join(BASE_DIR, "framing.sqlite")
+SHOP_PATH = os.path.join(BASE_DIR, "shop.json")
 
 GROVE_SERVER = os.environ.get("GROVE_SERVER", "http://127.0.0.1:3000")
 DEV_GROVE_SERVER = os.environ.get("DEV_GROVE_SERVER", "http://127.0.0.1:3010")
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
-# Start the ticket sequence just past Phil's sample (0045672). Real shop's
-# pad sample was 0045672, so the first ticket entered through the app reads
-# 0045673 — feels continuous with his existing paper book.
-TICKET_START = 45673
+# Twilio creds are secrets, so they stay in env. The sender phone number
+# (twilio_from) is per-shop config and lives in shop.json.
+TWILIO_SID = os.environ.get("TWILIO_SID", "").strip()
+TWILIO_TOKEN = os.environ.get("TWILIO_TOKEN", "").strip()
 
 
-ORDER_COLUMNS = [
-    "id", "created_at", "updated_at", "version",
-    "ticket_no",
-    "customer_name", "customer_phone", "customer_address", "customer_zip",
-    "customer_email",
-    "date_received", "date_promised",
-    "description_of_item", "declared_value",
-    "frame_size", "frame_molding_no", "frame_feet", "frame_price_per_foot",
-    "frame_amount",
-    "liner_size", "liner_no", "liner_feet", "liner_price_per_foot",
-    "liner_amount",
-    "mat1_type", "mat1_color",
-    "mat1_margin_top_in", "mat1_margin_sides_in", "mat1_margin_bottom_in",
-    "mat1_amount",
-    "mat2_type", "mat2_color",
-    "mat2_margin_top_in", "mat2_margin_sides_in", "mat2_margin_bottom_in",
-    "mat2_amount",
-    "glass_kind", "glass_amount",
-    "mount_kind", "mount_backer_type", "mount_amount",
-    "hanger_kind", "hanger_amount",
-    "service_stretch", "service_repair", "service_block", "service_fitting",
-    "services_amount",
-    "misc_supplies", "misc_supplies_amount",
-    "special_instructions",
-    "subtotal", "tax_amount", "total", "deposit_amount", "balance_due",
-    "customer_signature_png", "customer_signed_at",
-    "artwork_photo_url",
-    "stage",
-]
+def _load_shop():
+    try:
+        with open(SHOP_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise SystemExit(f"Error: {SHOP_PATH} not found. Create it before starting.")
+    except json.JSONDecodeError as e:
+        raise SystemExit(f"Error: {SHOP_PATH} is not valid JSON: {e}")
+
+
+SHOP = _load_shop()
+
+
+_order_columns_cache = None
+
+
+def _load_order_columns():
+    """Read column names from the projection via PRAGMA. Cached on first
+    successful read so a fresh db that picks up later still works."""
+    global _order_columns_cache
+    if _order_columns_cache:
+        return _order_columns_cache
+    if not os.path.exists(DB_PATH):
+        return []
+    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    try:
+        rows = conn.execute('PRAGMA table_info("order")').fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+    cols = [r[1] for r in rows]
+    if cols:
+        _order_columns_cache = cols
+    return cols
 
 
 def query_events(resource="order", limit=500):
@@ -117,7 +125,10 @@ def order_table_exists():
 def query_orders(stage=None, order_id=None):
     if not order_table_exists():
         return []
-    cols = ", ".join(f'"{c}"' for c in ORDER_COLUMNS)
+    columns = _load_order_columns()
+    if not columns:
+        return []
+    cols = ", ".join(f'"{c}"' for c in columns)
     sql = f'SELECT {cols} FROM "order"'
     params = []
     where = []
@@ -147,8 +158,9 @@ def query_orders(stage=None, order_id=None):
 def next_ticket_no():
     """Pick the next sequential ticket_no by reading the projection.
     Single-station shop, no race concerns for v1."""
+    start = int(SHOP.get("ticket_seq_start", 1))
     if not order_table_exists():
-        return f"{TICKET_START:07d}"
+        return f"{start:07d}"
     conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
     try:
         row = conn.execute(
@@ -159,13 +171,13 @@ def next_ticket_no():
         max_n = None
     finally:
         conn.close()
-    if max_n is None or max_n < TICKET_START - 1:
-        return f"{TICKET_START:07d}"
+    if max_n is None or max_n < start - 1:
+        return f"{start:07d}"
     return f"{int(max_n) + 1:07d}"
 
 
-SCAN_PROMPT = """\
-You are reading a paper frame-order ticket from Thomson's Art & Frame.
+SCAN_PROMPT = f"""\
+You are reading a paper frame-order ticket from {SHOP.get("shop_name", "a custom framing shop")}.
 Extract the fields below and return STRICT JSON only (no prose, no code fences).
 Use null for missing fields, never a string like "blank" or "?".
 Numbers as numbers, not strings. Checkboxes return the selected enum value.
@@ -264,6 +276,87 @@ def parse_scan_response(text):
     return json.loads(cleaned)
 
 
+def normalize_phone(raw):
+    """Normalize a customer phone to E.164 (+1...) for Twilio. Strips
+    non-digits, prepends +1 for a 10-digit US number, or + for 11 digits
+    starting with 1. Pass-through if it already starts with +. Returns
+    None if it can't be normalized — caller skips SMS in that case."""
+    if not raw:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    if s.startswith("+"):
+        return s
+    digits = "".join(c for c in s if c.isdigit())
+    if len(digits) == 10:
+        return "+1" + digits
+    if len(digits) == 11 and digits.startswith("1"):
+        return "+" + digits
+    return None
+
+
+def send_ready_sms(customer_phone, customer_name, ticket_no):
+    """Send a ready-for-pickup SMS via Twilio. Skip cleanly on any
+    missing input and log one line. Fire-and-forget; failure must not
+    propagate to the caller."""
+    twilio_from = SHOP.get("twilio_from", "").strip()
+    if not TWILIO_SID:
+        print(f"  [sms skipped] missing TWILIO_SID (ticket #{ticket_no})")
+        return
+    if not TWILIO_TOKEN:
+        print(f"  [sms skipped] missing TWILIO_TOKEN (ticket #{ticket_no})")
+        return
+    if not twilio_from:
+        print(f"  [sms skipped] no shop.twilio_from configured (ticket #{ticket_no})")
+        return
+    to = normalize_phone(customer_phone)
+    if not to:
+        print(f"  [sms skipped] no phone for ticket #{ticket_no}")
+        return
+
+    shop_name = SHOP.get("shop_name", "the shop")
+    body_text = (
+        f"Your frame is ready for pickup at {shop_name}. "
+        f"Bring your ticket #{ticket_no}."
+    )
+    form = urllib.parse.urlencode({
+        "To": to,
+        "From": twilio_from,
+        "Body": body_text,
+    }).encode("utf-8")
+    auth = base64.b64encode(f"{TWILIO_SID}:{TWILIO_TOKEN}".encode("utf-8")).decode("ascii")
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_SID}/Messages.json"
+    req = urllib.request.Request(
+        url,
+        data=form,
+        headers={
+            "Authorization": f"Basic {auth}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+        print(f"  [sms sent] to {to} for ticket #{ticket_no}")
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")[:300]
+        print(f"  [sms failed] Twilio {e.code} for ticket #{ticket_no}: {err_body}")
+    except Exception as e:
+        print(f"  [sms failed] for ticket #{ticket_no}: {e}")
+
+
+def fire_ready_sms_for(order_id):
+    """Background-thread entry point: look up the order, send the SMS."""
+    rows = query_orders(order_id=order_id)
+    if not rows:
+        print(f"  [sms skipped] order {order_id} not found after mark_ready")
+        return
+    o = rows[0]
+    send_ready_sms(o.get("customer_phone"), o.get("customer_name"), o.get("ticket_no"))
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -288,6 +381,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         if path == "/api/_next_ticket":
             self._send_json({"ticket_no": next_ticket_no()})
+            return
+
+        if path == "/api/shop":
+            self._send_json(SHOP)
             return
 
         if path == "/healthz":
@@ -353,6 +450,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             payload["ticket_no"] = next_ticket_no()
             body = json.dumps(payload).encode("utf-8")
 
+        is_mark_ready = self.path == "/api/order/mark_ready"
+
         url = GROVE_SERVER + self.path
         req = urllib.request.Request(
             url,
@@ -369,6 +468,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(resp_body)))
                 self.end_headers()
                 self.wfile.write(resp_body)
+            if is_mark_ready and 200 <= resp.status < 300:
+                # Fire SMS after the HTTP response is flushed; failure in
+                # the thread must never block or break the state transition.
+                try:
+                    req_payload = json.loads(body.decode("utf-8")) if body else {}
+                    oid = req_payload.get("id")
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    oid = None
+                if oid:
+                    threading.Thread(
+                        target=fire_ready_sms_for, args=(oid,), daemon=True
+                    ).start()
         except urllib.error.HTTPError as e:
             resp_body = e.read()
             self.send_response(e.code)
@@ -448,6 +559,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    # Make stdout line-buffered so banner + [sms skipped] / request logs
+    # appear in logs/serve.log immediately instead of after the process buffer fills.
+    sys.stdout.reconfigure(line_buffering=True)
     print("┌─────────────────────────────────────────────┐")
     print("│        Framing app — proxy server           │")
     print("└─────────────────────────────────────────────┘")
@@ -456,6 +570,9 @@ if __name__ == "__main__":
     print(f"  Static       : {STATIC_DIR}")
     print(f"  Database     : {DB_PATH}")
     print(f"  Grove server : {GROVE_SERVER}")
+    print(f"  Shop         : {SHOP.get('shop_name', '?')} (config: {SHOP_PATH})")
+    sms_ready = bool(TWILIO_SID and TWILIO_TOKEN and SHOP.get("twilio_from", "").strip())
+    print(f"  Twilio SMS   : {'enabled' if sms_ready else 'disabled (mark_ready will log [sms skipped])'}")
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("  WARN         : ANTHROPIC_API_KEY not set — /api/order/scan_ticket will 500")
     print()

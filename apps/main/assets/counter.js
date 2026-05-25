@@ -43,8 +43,21 @@ const SERVICE_LABELS = {
 
 const ACTIVE_STAGES = ["intake", "cutting_materials", "assembly"];
 
-// Westchester County NY combined rate. Override per ticket in the UI.
-const DEFAULT_TAX_RATE = 0.08375;
+// Shop config — name, address, ticket_seq_start, tax_rate, twilio_from.
+// Fetched from /api/shop once per page load and cached here so the
+// intake renderer can read it synchronously.
+let SHOP = null;
+
+async function loadShop() {
+  if (SHOP) return SHOP;
+  try {
+    const res = await fetch("/api/shop");
+    if (res.ok) SHOP = await res.json();
+  } catch (err) {
+    console.warn("shop fetch failed", err);
+  }
+  return SHOP || {};
+}
 
 // Authorization paragraph rendered verbatim above the signature pad.
 const AUTH_TEXT =
@@ -297,7 +310,10 @@ const CounterIntake = {
   ticketEl: null,
   editorEl: null,
 
-  mount() {
+  async mount() {
+    // Load shop config before building blank state so tax_rate is correct
+    // on the first render.
+    await loadShop();
     this.state = this.blankState();
     this.rootEl = $("intake-root");
     this.footerSummaryEl = $("footer-summary");
@@ -361,7 +377,7 @@ const CounterIntake = {
 
       special_instructions: "",
 
-      tax_rate: DEFAULT_TAX_RATE,
+      tax_rate: num(SHOP?.tax_rate, 0),
       deposit_amount: "",
 
       customer_signature_png: "",
@@ -471,13 +487,17 @@ const CounterIntake = {
     const s = this.state;
     const t = this.totals();
 
-    // Paper-style header
+    // Paper-style header — values come from shop.json via /api/shop.
+    const shopName = (SHOP && SHOP.shop_name) || "Custom framing";
+    const shopAddr = (SHOP && SHOP.shop_address) || "";
+    const shopPhone = (SHOP && SHOP.shop_phone) || "";
+    const shopEmail = (SHOP && SHOP.shop_email) || "";
+    const contactLine = [shopPhone, shopEmail].filter(Boolean).join(" · ");
     const head = el("div", { class: "ticket-header" });
     head.innerHTML = `
-      <div class="ticket-header-name">Thomson's Art &amp; Frame</div>
+      <div class="ticket-header-name">${escapeHtml(shopName)}</div>
       <div class="ticket-header-addr">
-        184 Mamaroneck Avenue · White Plains, NY 10601<br>
-        (914) 949-4885 · info@thomsonsart.com
+        ${escapeHtml(shopAddr)}${contactLine ? "<br>" + escapeHtml(contactLine) : ""}
       </div>
       <div class="ticket-header-meta">
         <span>TICKET #${escapeHtml(s.next_ticket_no || "—")}</span>
@@ -1269,7 +1289,9 @@ const CounterIntake = {
         value: (num(this.state.tax_rate) * 100).toFixed(3).replace(/\.?0+$/, ""),
       });
       m.appendChild(inp);
-      m.appendChild(el("div", { class: "editor-sub" }, "Westchester combined default: 8.375%"));
+      const shopRate = num(SHOP?.tax_rate, 0);
+      const shopRatePct = (shopRate * 100).toFixed(3).replace(/\.?0+$/, "");
+      m.appendChild(el("div", { class: "editor-sub" }, `Shop default: ${shopRatePct}%`));
       const actions = el("div", { class: "modal-actions" });
       actions.appendChild(el("button", { class: "btn btn-secondary", type: "button", onclick: close }, "Cancel"));
       actions.appendChild(el("button", { class: "btn btn-primary", type: "button", onclick: () => {

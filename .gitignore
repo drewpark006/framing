@@ -6,3 +6,9 @@ node_modules/
 logs/
 .DS_Store
 nohup.out
+__pycache__/
+scripts/scan_samples/*.jpg
+scripts/scan_samples/*.jpeg
+scripts/scan_samples/*.png
+scripts/scan_samples/*.webp
+scripts/scan_accuracy.md

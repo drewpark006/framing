@@ -1,0 +1,9 @@
+{
+  "shop_name": "Thomson's Art & Frame",
+  "shop_address": "184 Mamaroneck Avenue, White Plains, NY 10601",
+  "shop_phone": "(914) 949-4885",
+  "shop_email": "info@thomsonsart.com",
+  "ticket_seq_start": 45673,
+  "tax_rate": 0.08375,
+  "twilio_from": ""
+}
