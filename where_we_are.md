@@ -37,7 +37,7 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 
 ## Queued (in order, Verso launch first)
 
-1. **Drew:** cross-compile grove-server for Linux: `cd ../grove && cargo build --release --package grove-server --target x86_64-unknown-linux-gnu`, then `cp` the binary to `./grove-server` in framing root
+1. **Drew:** cross-compile grove-server for Linux. Prereqs: start Docker Desktop, `ssh-add ~/.ssh/id_github`. Then `./scripts/build-grove-linux.sh` (~30 min via qemu). Outputs `./grove-server` (linux/amd64 binary) in framing root
 2. **Drew:** `fly launch --no-deploy` to register the app, `fly volumes create framing_data --region ewr --size 1`
 3. **Drew:** `fly secrets set ANTHROPIC_API_KEY=... TWILIO_SID=... TWILIO_TOKEN=... TWILIO_FROM=+1914... SHOP_USER=... SHOP_PASS_HASH=$(python3 scripts/hash_password.py) SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))") DB_PATH=/data/framing.db`
 4. **Drew:** `fly deploy`; demo URL is `verso-thomson-art.fly.dev`
