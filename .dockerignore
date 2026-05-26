@@ -1,0 +1,58 @@
+# .dockerignore — keep the build context (and the resulting image) lean.
+#
+# The grove-server binary (./grove-server) is intentionally NOT ignored;
+# the Dockerfile COPYs it in. Drew drops a freshly built Linux binary at
+# the repo root before `docker build .`.
+
+# VCS
+.git/
+.gitignore
+.gitattributes
+
+# Local databases (Fly volume holds the prod db)
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.python-version
+
+# Node (only used for the seed script; not needed at runtime)
+node_modules/
+package-lock.json
+package.json
+
+# Logs and runtime state
+logs/
+*.log
+
+# Editor / OS junk
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Test data and dev scripts (not needed in the deploy image)
+scripts/scan_samples/
+scripts/scan_accuracy.md
+
+# Internal planning docs
+where_we_are.md
+PLAN.md
+README.md
+
+# Claude harness state
+.claude/
+CLAUDE.md
+
+# Fly / Docker meta (don't COPY ourselves)
+fly.toml
+.dockerignore
+Dockerfile

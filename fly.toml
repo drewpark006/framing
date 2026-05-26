@@ -1,0 +1,66 @@
+# fly.toml — Framing app on Fly.io (Verso launch).
+#
+# Required secrets (set BEFORE `fly deploy` or app will half-work):
+#
+#   fly secrets set \
+#     ANTHROPIC_API_KEY=sk-ant-... \
+#     TWILIO_SID=ACxxxxxxxx \
+#     TWILIO_TOKEN=xxxxxxxx \
+#     TWILIO_FROM=+19148015194 \
+#     SHOP_USER=phil \
+#     SHOP_PASS_HASH='...' \
+#     DB_PATH=/data/framing.db
+#
+# Notes:
+#   - DB_PATH contract: serve.py currently hardcodes DB_PATH relative to
+#     BASE_DIR (see serve.py:32). The other agent owns refactoring serve.py
+#     to read DB_PATH from env, defaulting to the current relative path for
+#     local dev. Once that lands, the [mounts] section below + the
+#     ENV DB_PATH=/data/framing.db in the Dockerfile give us persistence
+#     across machine restarts.
+#   - TWILIO_FROM is in shop.json today (per-shop config, not a secret).
+#     For Verso we still pass it via env so Drew can rotate without
+#     editing the repo; serve.py change (other agent) should prefer env
+#     TWILIO_FROM over shop.json.twilio_from when both are set.
+#   - SHOP_USER / SHOP_PASS_HASH are for the basic-auth gate the other
+#     agent is wiring into serve.py. Listed here so the secret-set step
+#     captures them.
+#
+# Manual one-time setup (Drew):
+#   fly volumes create framing_data --region ewr --size 1
+#   fly secrets set ...   (the block above)
+#   fly deploy
+
+app = "verso-thomson-art"
+primary_region = "ewr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Non-secret defaults. Secrets override via `fly secrets set`.
+  PORT = "8080"
+  DB_PATH = "/data/framing.db"
+
+# Persistent SQLite db. Single machine, single volume — fine for v1
+# (one shop, one station). If we ever scale to >1 machine, this becomes
+# a problem and we'd need to either pin to one machine or move off
+# SQLite.
+[[mounts]]
+  source = "framing_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/healthz"

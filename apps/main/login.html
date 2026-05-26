@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Verso · sign in</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icon-180.png">
+  <link rel="icon" href="/assets/favicon.png">
+  <style>
+    :root {
+      --bg: #1f1f23;
+      --bg-deep: #141416;
+      --panel: #26262c;
+      --panel-soft: #2d2d34;
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.16);
+      --text: #f5f3ef;
+      --text-dim: rgba(255,255,255,0.7);
+      --text-muted: rgba(255,255,255,0.5);
+      --accent: #1e63d4;
+      --accent-hover: #1a55b6;
+      --danger: #e06464;
+      --radius: 18px;
+      --radius-sm: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at top, #2a2a30 0%, var(--bg) 45%, var(--bg-deep) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      padding: 32px 28px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .wordmark {
+      text-align: center;
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin: 4px 0 4px;
+      color: #fff;
+    }
+    .tagline {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .field input {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-size: 16px;
+      font-family: inherit;
+    }
+    .field input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+      border-color: var(--accent);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: background-color 0.12s ease;
+    }
+    .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error {
+      display: none;
+      background: rgba(224,100,100,0.12);
+      border: 1px solid rgba(224,100,100,0.4);
+      color: var(--danger);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .error.show { display: block; }
+    .foot {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1 class="wordmark">Verso</h1>
+    <p class="tagline">sign in to continue</p>
+
+    <div id="err" class="error" role="alert">sign-in failed</div>
+
+    <form id="login-form" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="username">username</label>
+        <input id="username" name="username" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+      </div>
+      <div class="field">
+        <label for="password">password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button id="submit-btn" class="btn" type="submit">sign in</button>
+    </form>
+
+    <p class="foot">verso pos</p>
+  </main>
+
+  <script>
+    (function () {
+      var form = document.getElementById('login-form');
+      var errEl = document.getElementById('err');
+      var btn = document.getElementById('submit-btn');
+
+      // Show error if redirected here with ?err=1 (fallback for non-JS form post).
+      try {
+        var qs = new URLSearchParams(window.location.search);
+        if (qs.get('err')) errEl.classList.add('show');
+      } catch (e) {}
+
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        errEl.classList.remove('show');
+        btn.disabled = true;
+        var data = new URLSearchParams();
+        data.set('username', document.getElementById('username').value);
+        data.set('password', document.getElementById('password').value);
+        fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: data.toString(),
+          credentials: 'same-origin',
+        }).then(function (res) {
+          if (res.ok) {
+            window.location.href = '/';
+            return;
+          }
+          errEl.textContent = 'sign-in failed';
+          errEl.classList.add('show');
+          btn.disabled = false;
+          document.getElementById('password').value = '';
+          document.getElementById('password').focus();
+        }).catch(function () {
+          errEl.textContent = 'network error, try again';
+          errEl.classList.add('show');
+          btn.disabled = false;
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -6,34 +6,55 @@ A living status doc. Updated on every commit. Read this first when picking the w
 
 ## Current focus
 
-Get the ready-for-pickup SMS landing on a real phone for the demos this weekend (Phil + Matt). Code path is done; blocked on US carrier compliance (A2P 10DLC).
+Ship a hosted, branded Verso app at versohq.com by Wed 2026-05-27 so Matt sees a real product. Code-side packaging just landed (Docker + fly.toml + login wall + Verso branding + PWA). Deploy is gated on Drew building a Linux grove-server binary, registering the domain, and running fly deploy.
+
+A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. Verso launch is the urgent one.
 
 ## What's done
 
-- Schema + UI matches Phil's paper ticket FR-248-3 (intake form, signature pad, /api/order/scan_ticket via Claude vision)
-- Per-shop config refactor: `shop.json` holds shop name/address/tax/ticket-seq/twilio sender; `serve.py` loads at startup and exposes `GET /api/shop`
-- ORDER_COLUMNS replaced with PRAGMA introspection (no more silent column drift on schema changes)
-- Twilio SMS code path wired: `send_ready_sms` fires in a daemon thread after `mark_ready` returns 2xx, can't block the state transition. Phone normalizer handles common US formats. Skip paths log distinct `[sms skipped]` lines
-- README rewritten from one line to a real onboarding doc
-- ngrok tunnel running on `https://b25a-174-44-146-133.ngrok-free.app` for remote testing
+- Schema + UI matches Phil's paper ticket FR-248-3 (intake, signature pad, /api/order/scan_ticket via Claude vision)
+- Per-shop config: `shop.json` holds shop name/address/tax/ticket-seq/twilio sender; `serve.py` loads at startup and exposes `GET /api/shop`
+- ORDER_COLUMNS uses PRAGMA introspection (no silent column drift on schema changes)
+- Twilio SMS code path wired: `send_ready_sms` fires in a daemon thread after `mark_ready` returns 2xx. Phone normalizer handles common US formats. Skip paths log distinct `[sms skipped]` lines
+- README rewritten as a real onboarding doc
+- **Verso packaging landed:**
+  - `Dockerfile` (multi-stage, python:3.14-slim runtime, grove-server copied from build context as `./grove-server`)
+  - `entrypoint.sh` launches grove-server on 3000 + 3010 in background and execs `serve.py 8080` in foreground
+  - `fly.toml` for app `verso-thomson-art`, region ewr, volume mount at /data
+  - `.dockerignore` excludes git, sqlite, .venv, scan_samples
+  - `serve.py` login wall: scrypt-verified `SHOP_USER` + `SHOP_PASS_HASH`, HMAC-signed `verso_session` cookie (90-day, httponly secure samesite=lax), middleware gates everything except `/login`, `/api/login`, `/healthz`, `/manifest.webmanifest`, `/assets/*`. Refuses to start without `SHOP_USER` + `SHOP_PASS_HASH` + `SECRET_KEY` env vars
+  - `serve.py` `DB_PATH` now reads from env (default unchanged for local dev)
+  - `apps/main/login.html` Verso-branded sign-in page on the dark POS palette
+  - `scripts/hash_password.py` generates the scrypt-format hash for `SHOP_PASS_HASH`
+  - PWA: `apps/main/manifest.webmanifest`, V-mark icons at 180px/512px + favicon, head tags + apple-mobile-web-app meta on all counter pages and login
+  - Branding pass: all counter HTML chrome reads "Verso". Shop name "Thomson's Art & Frame" stays where it belongs (ticket header, SMS body)
 
 ## In flight
 
 - Twilio A2P 10DLC Sole Proprietor registration, paused mid-form on Business Details step. About 4 screens deep; needs Drew's address, email, OTP'd mobile, then brand + campaign registration
 
-## Queued (in order)
+## Queued (in order, Verso launch first)
 
-1. Finish A2P 10DLC Sole Proprietor registration in the Twilio console
-2. Edit `send_ready_sms` body to append `Reply STOP to opt out.` (carriers want to see opt-out language; matches what we'll claim in the campaign sample messages)
-3. Verify Drew's number (`+12034294606`) in Twilio Verified Caller IDs (trial accounts only deliver to verified destinations)
-4. Smoke-test mark_ready end-to-end. Confirm Twilio Messages API shows `status=delivered` (not `undelivered`). Real phone buzz lands
-5. After Phil signs on: consider migrating brand from "Drew Park (Sole Prop)" to "Thomson's Art & Frame (Standard)" using Phil's EIN
-6. Scan accuracy validation against 5+ real Phil tickets (`scripts/scan_validate.py`); iterate `SCAN_PROMPT` if any critical field is below 80%
-7. iPad sanity check: artwork photo flow + frame_size → frame_feet auto-fill
+1. **Drew:** register `versohq.com` (Cloudflare Registrar recommended)
+2. **Drew:** cross-compile grove-server for Linux: `cd ../grove && cargo build --release --package grove-server --target x86_64-unknown-linux-gnu`, then `cp` the binary to `./grove-server` in framing root
+3. **Drew:** `fly launch --no-deploy` to register the app, `fly volumes create framing_data --region ewr --size 1`
+4. **Drew:** `fly secrets set ANTHROPIC_API_KEY=... TWILIO_SID=... TWILIO_TOKEN=... TWILIO_FROM=+1914... SHOP_USER=... SHOP_PASS_HASH=$(python3 scripts/hash_password.py) SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))") DB_PATH=/data/framing.db`
+5. **Drew:** `fly deploy`; point Cloudflare DNS at the Fly app; `fly certs create versohq.com`
+6. **Drew:** smoke-test on iPad: Add to Home Screen, sign in, create a ticket end-to-end
+7. Finish A2P 10DLC Sole Proprietor registration in the Twilio console
+8. Edit `send_ready_sms` body to append `Reply STOP to opt out.`
+9. Verify Drew's number (`+12034294606`) in Twilio Verified Caller IDs
+10. Smoke-test mark_ready end-to-end on the hosted Fly app once SMS is live
+11. Scan accuracy validation against 5+ real Phil tickets (`scripts/scan_validate.py`); iterate `SCAN_PROMPT` if any critical field is below 80%
+12. iPad sanity check: artwork photo flow + frame_size → frame_feet auto-fill
 
 ## Decisions made
 
-- **Sole Proprietor brand under Drew's name**, not Standard under Thomson's. Why: don't have Phil's EIN, and asking for it before he's signed on looks like a tax-ID ask to a prospect. The message body still says "Thomson's Art & Frame" which carriers don't care about
+- **Product brand is "Verso", domain is versohq.com.** Why: bare-word "Verso" carries the brand equity; "HQ" is only there to disambiguate the URL since verso.com is held by a Belgian retailer. Trademark filing is on "VERSO" (Classes 9 + 42), not "VERSOHQ"
+- **App chrome says "Verso", shop name "Thomson's Art & Frame" stays on tickets and SMS body.** Why: Verso is the product Matt sees, Thomson's is the shop on the printed customer-facing artifacts
+- **One Fly app per shop for v1, no subdomain routing yet.** Why: only one shop (Phil's). Multi-shop slug routing waits for shop #2
+- **Shared password per instance, no sign-up flow.** Why: Drew creates accounts manually, one shop = one credential pair. Sessions are HMAC-signed httponly secure cookies with 90-day expiry
+- **Sole Proprietor brand under Drew's name**, not Standard under Thomson's, for A2P. Why: don't have Phil's EIN, and asking for it before he's signed on looks like a tax-ID ask to a prospect
 - **914 US local long-code over toll-free.** Why: toll-free verification is 1-3 weeks, dead for Sunday. Local + A2P 10DLC sole prop approves in minutes to hours
 - **Twilio sender (`twilio_from`) lives in `shop.json`, not env.** Why: per-shop, not a secret. SID + token stay in env because they ARE secrets
 - **Build "demo mode" only as fallback.** Why: faking the SMS in the UI breaks the Manzano demo story for Matt (the whole point is showing state transition → real external side effect)
@@ -54,7 +75,8 @@ Get the ready-for-pickup SMS landing on a real phone for the demos this weekend 
 
 ## Notes for future-Drew picking this back up
 
-- Stack runs via `./start.sh --no-browser`. Banner shows shop name + Twilio enabled/disabled status
+- Stack runs via `./start.sh --no-browser`. Banner shows shop name + Twilio enabled/disabled status. Local dev needs `SHOP_USER` + `SHOP_PASS_HASH` + `SECRET_KEY` env vars set or serve.py refuses to start (generate the hash with `python3 scripts/hash_password.py`)
 - Logs at `logs/{grove-app,grove-dev,serve}.log`. `serve.log` is line-buffered so `[sms sent]` / `[sms skipped]` lines appear in real time
 - Smoke test pattern lives in the README under "Verification"
 - The phone variant (`/`, `/new.html`, `/order.html`) is stale against the current schema. iPad/desktop counter at `/counter/` is the form factor
+- For Fly deploy: the grove-server binary in `/Users/dpark/Manzano/grove/target/release/grove-server` is darwin/arm64. Must rebuild for Linux first (see queued #2) and copy to `./grove-server` in the framing repo root before `docker build .`

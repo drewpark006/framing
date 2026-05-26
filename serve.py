@@ -26,10 +26,15 @@ import sqlite3
 import json
 import base64
 import threading
+import hashlib
+import hmac
+import secrets
+import time
+from http.cookies import SimpleCookie
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "apps", "main")
-DB_PATH = os.path.join(BASE_DIR, "framing.sqlite")
+DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "framing.sqlite"))
 SHOP_PATH = os.path.join(BASE_DIR, "shop.json")
 
 GROVE_SERVER = os.environ.get("GROVE_SERVER", "http://127.0.0.1:3000")
@@ -40,6 +45,116 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 # (twilio_from) is per-shop config and lives in shop.json.
 TWILIO_SID = os.environ.get("TWILIO_SID", "").strip()
 TWILIO_TOKEN = os.environ.get("TWILIO_TOKEN", "").strip()
+
+# ---- Auth config -------------------------------------------------------------
+#
+# Verso runs behind a single shared shop login. We verify a username + scrypt
+# hash from env, then issue an HMAC-signed session cookie. Refuse to start
+# without all three secrets so prod can't accidentally come up wide open.
+#
+# SHOP_USER         — single shop username (plain string)
+# SHOP_PASS_HASH    — scrypt hash string produced by scripts/hash_password.py:
+#                       scrypt$<n>$<r>$<p>$<salt_b64>$<hash_b64>
+# SECRET_KEY        — random string used to HMAC the session cookie
+
+SHOP_USER = os.environ.get("SHOP_USER", "").strip()
+SHOP_PASS_HASH = os.environ.get("SHOP_PASS_HASH", "").strip()
+SECRET_KEY = os.environ.get("SECRET_KEY", "").strip()
+
+SESSION_COOKIE = "verso_session"
+SESSION_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
+
+# Paths exempt from auth. Anything not in this list / not under one of the
+# prefixes requires a valid session cookie. /login and /api/login are public
+# so the user can actually sign in; /healthz is public so Fly health checks
+# don't 302 to /login (a 302 is not a healthy probe).
+PUBLIC_EXACT = {"/login", "/api/login", "/healthz", "/manifest.webmanifest"}
+PUBLIC_PREFIXES = ("/assets/",)
+PUBLIC_EXACT_EXTRA = set()
+
+
+def verify_password(password: str, stored: str) -> bool:
+    """Verify a password against a stored scrypt hash string of the form
+    scrypt$<n>$<r>$<p>$<salt_b64>$<hash_b64>. Constant-time compare."""
+    if not stored or not password:
+        return False
+    parts = stored.split("$")
+    if len(parts) != 6 or parts[0] != "scrypt":
+        return False
+    try:
+        n = int(parts[1])
+        r = int(parts[2])
+        p = int(parts[3])
+        salt = base64.b64decode(parts[4])
+        expected = base64.b64decode(parts[5])
+    except (ValueError, base64.binascii.Error):
+        return False
+    try:
+        dk = hashlib.scrypt(
+            password.encode("utf-8"),
+            salt=salt,
+            n=n, r=r, p=p,
+            dklen=len(expected),
+        )
+    except (ValueError, MemoryError):
+        return False
+    return hmac.compare_digest(dk, expected)
+
+
+def _sign(payload: str) -> str:
+    return hmac.new(
+        SECRET_KEY.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+
+
+def make_session_token(user: str, ttl_seconds: int = SESSION_TTL_SECONDS) -> str:
+    """Cookie value format: '{user}|{expiry_unix}|{hmac_hex}'."""
+    expiry = int(time.time()) + ttl_seconds
+    payload = f"{user}|{expiry}"
+    return f"{payload}|{_sign(payload)}"
+
+
+def verify_session_token(token: str) -> bool:
+    if not token or not SECRET_KEY:
+        return False
+    parts = token.split("|")
+    if len(parts) != 3:
+        return False
+    user, expiry_s, sig = parts
+    if user != SHOP_USER:
+        return False
+    try:
+        expiry = int(expiry_s)
+    except ValueError:
+        return False
+    if expiry < int(time.time()):
+        return False
+    expected = _sign(f"{user}|{expiry}")
+    return hmac.compare_digest(expected, sig)
+
+
+def is_public_path(path: str) -> bool:
+    if path in PUBLIC_EXACT or path in PUBLIC_EXACT_EXTRA:
+        return True
+    for prefix in PUBLIC_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    return False
+
+
+def request_is_authed(handler) -> bool:
+    raw_cookie = handler.headers.get("Cookie", "")
+    if not raw_cookie:
+        return False
+    try:
+        jar = SimpleCookie()
+        jar.load(raw_cookie)
+    except Exception:
+        return False
+    morsel = jar.get(SESSION_COOKIE)
+    if not morsel:
+        return False
+    return verify_session_token(morsel.value)
 
 
 def _load_shop():
@@ -361,9 +476,101 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
+    # ---- Auth gate ---------------------------------------------------------
+    def _redirect(self, location, status=302):
+        self.send_response(status)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _gate(self, path):
+        """Returns True if the request should be allowed to proceed. If False,
+        a response (302 to /login) has already been written."""
+        if is_public_path(path):
+            return True
+        if request_is_authed(self):
+            return True
+        self._redirect("/login")
+        return False
+
+    def _serve_login_page(self):
+        login_path = os.path.join(STATIC_DIR, "login.html")
+        try:
+            with open(login_path, "rb") as f:
+                body = f.read()
+        except FileNotFoundError:
+            self.send_error(500, "login.html missing")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        # Login page should not be cached so we always pick up new builds.
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_login_post(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length) if length else b""
+        # Accept form-encoded (preferred) or JSON.
+        ctype = self.headers.get("Content-Type", "").lower()
+        username = ""
+        password = ""
+        try:
+            if ctype.startswith("application/json"):
+                data = json.loads(raw.decode("utf-8") or "{}")
+                username = str(data.get("username", "")).strip()
+                password = str(data.get("password", ""))
+            else:
+                fields = urllib.parse.parse_qs(raw.decode("utf-8"), keep_blank_values=True)
+                username = (fields.get("username", [""])[0] or "").strip()
+                password = fields.get("password", [""])[0] or ""
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self._send_text("invalid request", status=400)
+            return
+
+        if not username or not password:
+            self._send_text("sign-in failed", status=401)
+            return
+        # Constant-time username compare to avoid leaking validity by timing.
+        user_ok = hmac.compare_digest(username, SHOP_USER)
+        pass_ok = verify_password(password, SHOP_PASS_HASH)
+        if not (user_ok and pass_ok):
+            self._send_text("sign-in failed", status=401)
+            return
+
+        token = make_session_token(SHOP_USER)
+        max_age = SESSION_TTL_SECONDS
+        cookie = (
+            f"{SESSION_COOKIE}={token}; Max-Age={max_age}; Path=/; "
+            f"HttpOnly; Secure; SameSite=Lax"
+        )
+        body = b"ok"
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_text(self, text, status=200):
+        body = text.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        if path == "/login":
+            self._serve_login_page()
+            return
+
+        if not self._gate(path):
+            return
 
         if path == "/":
             self.path = "/index.html"
@@ -388,7 +595,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
 
         if path == "/healthz":
-            self._send_json({"ok": True})
+            body = b"ok"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
 
         if path == "/api/_modules" or path.endswith("/records") or path.endswith("/_schema"):
@@ -426,6 +638,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_error(502, f"dev grove-server unavailable: {e.reason}")
 
     def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        if path == "/api/login":
+            self._handle_login_post()
+            return
+
+        if not self._gate(path):
+            return
+
         if not self.path.startswith("/api/order/"):
             self.send_error(404, "Not found")
             return
@@ -562,6 +784,24 @@ if __name__ == "__main__":
     # Make stdout line-buffered so banner + [sms skipped] / request logs
     # appear in logs/serve.log immediately instead of after the process buffer fills.
     sys.stdout.reconfigure(line_buffering=True)
+
+    # Refuse to start without the auth secrets. Bypassing auth in dev was
+    # tempting but it's a prod footgun, so we just require the secrets
+    # everywhere. scripts/hash_password.py generates SHOP_PASS_HASH.
+    missing = [name for name, val in (
+        ("SHOP_USER", SHOP_USER),
+        ("SHOP_PASS_HASH", SHOP_PASS_HASH),
+        ("SECRET_KEY", SECRET_KEY),
+    ) if not val]
+    if missing:
+        sys.stderr.write(
+            "Error: missing required auth env vars: "
+            + ", ".join(missing)
+            + "\n  Generate SHOP_PASS_HASH with: python3 scripts/hash_password.py\n"
+            + "  Then export SHOP_USER, SHOP_PASS_HASH, SECRET_KEY before starting.\n"
+        )
+        sys.exit(2)
+
     print("┌─────────────────────────────────────────────┐")
     print("│        Framing app — proxy server           │")
     print("└─────────────────────────────────────────────┘")
@@ -571,6 +811,7 @@ if __name__ == "__main__":
     print(f"  Database     : {DB_PATH}")
     print(f"  Grove server : {GROVE_SERVER}")
     print(f"  Shop         : {SHOP.get('shop_name', '?')} (config: {SHOP_PATH})")
+    print(f"  Auth         : shop user '{SHOP_USER}', session cookie '{SESSION_COOKIE}'")
     sms_ready = bool(TWILIO_SID and TWILIO_TOKEN and SHOP.get("twilio_from", "").strip())
     print(f"  Twilio SMS   : {'enabled' if sms_ready else 'disabled (mark_ready will log [sms skipped])'}")
     if not os.environ.get("ANTHROPIC_API_KEY"):
