@@ -6,7 +6,9 @@ A living status doc. Updated on every commit. Read this first when picking the w
 
 ## Current focus
 
-Ship a hosted, branded Verso app at versohq.com by Wed 2026-05-27 so Matt sees a real product. Code-side packaging just landed (Docker + fly.toml + login wall + Verso branding + PWA). Deploy is gated on Drew building a Linux grove-server binary, registering the domain, and running fly deploy.
+Ship a hosted, branded Verso app by Wed 2026-05-27 so Matt sees a real product. Code-side packaging just landed (Docker + fly.toml + login wall + Verso branding + PWA). Deploy is gated on Drew building a Linux grove-server binary and running fly deploy.
+
+Demo URL for Wednesday: `verso-thomson-art.fly.dev`. The real Verso domain is deferred — versohq.com, verso.com, verso.studio are all taken. Pick the real URL Friday after Matt's reaction and Phil's sign-on. App chrome already reads "Verso" regardless of the URL.
 
 A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. Verso launch is the urgent one.
 
@@ -35,12 +37,12 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 
 ## Queued (in order, Verso launch first)
 
-1. **Drew:** register `versohq.com` (Cloudflare Registrar recommended)
-2. **Drew:** cross-compile grove-server for Linux: `cd ../grove && cargo build --release --package grove-server --target x86_64-unknown-linux-gnu`, then `cp` the binary to `./grove-server` in framing root
-3. **Drew:** `fly launch --no-deploy` to register the app, `fly volumes create framing_data --region ewr --size 1`
-4. **Drew:** `fly secrets set ANTHROPIC_API_KEY=... TWILIO_SID=... TWILIO_TOKEN=... TWILIO_FROM=+1914... SHOP_USER=... SHOP_PASS_HASH=$(python3 scripts/hash_password.py) SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))") DB_PATH=/data/framing.db`
-5. **Drew:** `fly deploy`; point Cloudflare DNS at the Fly app; `fly certs create versohq.com`
-6. **Drew:** smoke-test on iPad: Add to Home Screen, sign in, create a ticket end-to-end
+1. **Drew:** cross-compile grove-server for Linux: `cd ../grove && cargo build --release --package grove-server --target x86_64-unknown-linux-gnu`, then `cp` the binary to `./grove-server` in framing root
+2. **Drew:** `fly launch --no-deploy` to register the app, `fly volumes create framing_data --region ewr --size 1`
+3. **Drew:** `fly secrets set ANTHROPIC_API_KEY=... TWILIO_SID=... TWILIO_TOKEN=... TWILIO_FROM=+1914... SHOP_USER=... SHOP_PASS_HASH=$(python3 scripts/hash_password.py) SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))") DB_PATH=/data/framing.db`
+4. **Drew:** `fly deploy`; demo URL is `verso-thomson-art.fly.dev`
+5. **Drew:** smoke-test on iPad: Add to Home Screen, sign in, create a ticket end-to-end
+6. Post-Matt: pick a real domain (tryverso.com, verso.app if available, or something else), register, point DNS at Fly, `fly certs create <domain>`
 7. Finish A2P 10DLC Sole Proprietor registration in the Twilio console
 8. Edit `send_ready_sms` body to append `Reply STOP to opt out.`
 9. Verify Drew's number (`+12034294606`) in Twilio Verified Caller IDs
@@ -50,7 +52,7 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 
 ## Decisions made
 
-- **Product brand is "Verso", domain is versohq.com.** Why: bare-word "Verso" carries the brand equity; "HQ" is only there to disambiguate the URL since verso.com is held by a Belgian retailer. Trademark filing is on "VERSO" (Classes 9 + 42), not "VERSOHQ"
+- **Product brand is "Verso", domain deferred.** Why: bare-word "Verso" carries the brand equity (trademark filing is on "VERSO", Classes 9 + 42). verso.com is held by a Belgian retailer; versohq.com, verso.studio, verso.com all taken on 2026-05-26 search. Tomorrow demo runs from `verso-thomson-art.fly.dev`; pick the real URL Friday once Matt and Phil have weighed in
 - **App chrome says "Verso", shop name "Thomson's Art & Frame" stays on tickets and SMS body.** Why: Verso is the product Matt sees, Thomson's is the shop on the printed customer-facing artifacts
 - **One Fly app per shop for v1, no subdomain routing yet.** Why: only one shop (Phil's). Multi-shop slug routing waits for shop #2
 - **Shared password per instance, no sign-up flow.** Why: Drew creates accounts manually, one shop = one credential pair. Sessions are HMAC-signed httponly secure cookies with 90-day expiry
