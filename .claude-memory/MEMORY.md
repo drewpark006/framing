@@ -1,0 +1,7 @@
+- [Writing style for Drew](feedback_writing_style.md) — no em/en dashes, no italics, lowercase casual for outbound texts, no text-speak abbreviations
+- [This chat is planning-only](feedback_planning_only_chat.md) — generate plans here, paste plan into a separate execution agent; do not ExitPlanMode
+- [Framing project context](project_framing_context.md) — customer Phil Sohn, paper-ticket handoff problem, v0a built 2026-05-20
+- [Grove state-machine event payload pattern](feedback_grove_state_events.md) — state-transition events must include the new state value in payload, not just the event name
+- [Grove module gotchas](feedback_grove_module_gotchas.md) — Z3001 traps: don't `!= null` on non-nullable, update events overwrite with null, Decimal == Int always false
+- [Framing project location](reference_framing_location.md) — /Users/dpark/Manzano/framing, runs grove-server + serve.py
+- [Refresh where_we_are.md on every commit](feedback_framing_where_we_are_on_commit.md) — update the living status doc as part of every framing repo commit, not separately

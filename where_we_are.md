@@ -83,3 +83,4 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 - Smoke test pattern lives in the README under "Verification"
 - The phone variant (`/`, `/new.html`, `/order.html`) is stale against the current schema. iPad/desktop counter at `/counter/` is the form factor
 - For Fly deploy: the grove-server binary in `/Users/dpark/Manzano/grove/target/release/grove-server` is darwin/arm64. Must rebuild for Linux first (see queued #2) and copy to `./grove-server` in the framing repo root before `docker build .`
+- Cross-machine sync (Mac ↔ Windows): the repo is the sync mechanism. Claude's auto-memory lives in `./.claude-memory/` and is symlinked into `~/.claude/projects/-Users-dpark-Manzano-framing/memory` on each machine. Daily flow: `git pull` when sitting down, `git push` before standing up. Only one machine in use at a time, so no conflict risk
