@@ -572,9 +572,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not self._gate(path):
             return
 
-        if path == "/":
-            self.path = "/index.html"
-            return super().do_GET()
+        # The phone variant at /, /order.html, /new.html is stale against the
+        # current schema and Grove invariants (it sends a final_balance field
+        # the new schema doesn't have, so pickup fails with Z4001). Redirect
+        # to the counter UI so anyone sharing the bare URL lands in the right
+        # place. Preserve ?id=... on order detail so deep links keep working.
+        if path == "/" or path == "/index.html":
+            self._redirect("/counter/")
+            return
+        if path == "/order.html":
+            qs = ("?" + parsed.query) if parsed.query else ""
+            self._redirect("/counter/order.html" + qs)
+            return
+        if path == "/new.html":
+            self._redirect("/counter/intake.html")
+            return
 
         if path == "/api/orders":
             params = urllib.parse.parse_qs(parsed.query)

@@ -81,6 +81,6 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 - Stack runs via `./start.sh --no-browser`. Banner shows shop name + Twilio enabled/disabled status. Local dev needs `SHOP_USER` + `SHOP_PASS_HASH` + `SECRET_KEY` env vars set or serve.py refuses to start (generate the hash with `python3 scripts/hash_password.py`)
 - Logs at `logs/{grove-app,grove-dev,serve}.log`. `serve.log` is line-buffered so `[sms sent]` / `[sms skipped]` lines appear in real time
 - Smoke test pattern lives in the README under "Verification"
-- The phone variant (`/`, `/new.html`, `/order.html`) is stale against the current schema. iPad/desktop counter at `/counter/` is the form factor
+- The phone variant URLs (`/`, `/new.html`, `/order.html`) now redirect to `/counter/` equivalents — they were stale against the current schema (sent a `final_balance` field that no longer exists, breaking pickup with Z4001)
 - For Fly deploy: the grove-server binary in `/Users/dpark/Manzano/grove/target/release/grove-server` is darwin/arm64. Must rebuild for Linux first (see queued #2) and copy to `./grove-server` in the framing repo root before `docker build .`
 - Cross-machine sync (Mac ↔ Windows): the repo is the sync mechanism. Claude's auto-memory lives in `./.claude-memory/` and is symlinked into `~/.claude/projects/-Users-dpark-Manzano-framing/memory` on each machine. Daily flow: `git pull` when sitting down, `git push` before standing up. Only one machine in use at a time, so no conflict risk

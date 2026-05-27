@@ -116,7 +116,7 @@ function toast(msg, kind = "ok") {
 // fetch: "changed" when the payload differed (callsite re-rendered), "same"
 // when it matched. Cleans itself up on beforeunload.
 function livePoll(fetcher, applier, opts = {}) {
-  const intervalMs = opts.intervalMs || 5000;
+  const intervalMs = opts.intervalMs || 2000;
   const onSync = opts.onSync || (() => {});
   let lastHash = null;
   let inflight = false;
