@@ -16,7 +16,10 @@
 <body class="pos-body">
   <header class="pos-header">
     <a href="/counter/" class="pos-logo">Verso<span class="pos-logo-sub">counter dashboard</span></a>
-    <a href="/counter/intake.html" class="btn btn-primary">+ New order</a>
+    <div class="pos-header-actions">
+      <span class="sync-indicator" id="sync-indicator"></span>
+      <a href="/counter/intake.html" class="btn btn-primary">+ New order</a>
+    </div>
   </header>
 
   <main>
@@ -48,7 +51,7 @@
     </div>
   </main>
 
-  <script src="/assets/counter.js"></script>
+  <script src="/assets/counter.js?v=livesync"></script>
   <script>
     CounterDashboard.mount();
   </script>

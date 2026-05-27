@@ -16,14 +16,17 @@
 <body class="pos-body">
   <header class="pos-header">
     <a href="/counter/" class="pos-logo">Verso<span class="pos-logo-sub">order detail</span></a>
-    <a href="/counter/" class="btn btn-ghost btn-sm">Back to board</a>
+    <div class="pos-header-actions">
+      <span class="sync-indicator" id="sync-indicator"></span>
+      <a href="/counter/" class="btn btn-ghost btn-sm">Back to board</a>
+    </div>
   </header>
 
   <main id="order-main">
     <p class="page-sub">Loading…</p>
   </main>
 
-  <script src="/assets/counter.js"></script>
+  <script src="/assets/counter.js?v=livesync"></script>
   <script>
     CounterOrder.mount();
   </script>

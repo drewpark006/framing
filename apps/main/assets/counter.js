@@ -109,6 +109,74 @@ function toast(msg, kind = "ok") {
   setTimeout(() => t.remove(), 2400);
 }
 
+// livePoll — generic "this view stays in sync with the DB" helper.
+// Polls `fetcher()` every intervalMs; calls applier(data) only when the
+// payload changes; skips the tick when the tab is hidden so a backgrounded
+// browser doesn't burn cycles. onSync(kind) fires after every successful
+// fetch: "changed" when the payload differed (callsite re-rendered), "same"
+// when it matched. Cleans itself up on beforeunload.
+function livePoll(fetcher, applier, opts = {}) {
+  const intervalMs = opts.intervalMs || 5000;
+  const onSync = opts.onSync || (() => {});
+  let lastHash = null;
+  let inflight = false;
+  const tick = async () => {
+    if (document.hidden) return;
+    if (inflight) return;
+    inflight = true;
+    try {
+      const data = await fetcher();
+      const hash = JSON.stringify(data);
+      const changed = hash !== lastHash;
+      if (changed) {
+        lastHash = hash;
+        applier(data);
+      }
+      onSync(changed ? "changed" : "same");
+    } catch (err) {
+      // Transient errors don't kill the loop; the view keeps the last good
+      // render. Log so the console shows what's happening during debug.
+      console.warn("livePoll fetch failed:", err);
+    } finally {
+      inflight = false;
+    }
+  };
+  tick();
+  const handle = setInterval(tick, intervalMs);
+  window.addEventListener("beforeunload", () => clearInterval(handle));
+  return handle;
+}
+
+// SyncIndicator — small "Synced just now / 8s ago" pill rendered in a
+// page header. Updates a label every second and flashes a green dot when
+// new data lands. Pure DOM: takes an existing host element and writes
+// into it.
+function mountSyncIndicator(host) {
+  if (!host) return { onSync: () => {} };
+  host.innerHTML = `<span class="sync-dot"></span><span class="sync-label">Connecting…</span>`;
+  const dot = host.querySelector(".sync-dot");
+  const label = host.querySelector(".sync-label");
+  let lastSyncMs = null;
+  const tick = () => {
+    if (lastSyncMs == null) return;
+    const age = Math.round((Date.now() - lastSyncMs) / 1000);
+    label.textContent = age < 3 ? "Synced just now" : `Synced ${age}s ago`;
+  };
+  setInterval(tick, 1000);
+  return {
+    onSync: (kind) => {
+      lastSyncMs = Date.now();
+      tick();
+      if (kind === "changed") {
+        dot.classList.remove("flash");
+        // force reflow so the animation restarts on rapid updates
+        void dot.offsetWidth;
+        dot.classList.add("flash");
+      }
+    },
+  };
+}
+
 function trimDecimal(d) {
   if (d == null || d === "") return "";
   const s = String(d);
@@ -236,11 +304,15 @@ function fullOrderBody(o) {
 // ===================================================================
 const CounterDashboard = {
   async mount() {
-    await this.render();
+    const indicator = mountSyncIndicator($("sync-indicator"));
+    livePoll(
+      () => this.fetch(),
+      (orders) => this.render(orders),
+      { onSync: indicator.onSync },
+    );
   },
 
-  async render() {
-    const orders = await this.fetch();
+  render(orders) {
     const active = orders.filter(o => ACTIVE_STAGES.includes(o.stage));
     const ready  = orders.filter(o => o.stage === "ready_for_pickup");
     const closed = orders.filter(o => o.stage === "picked_up" || o.stage === "cancelled");
@@ -1601,21 +1673,43 @@ const CounterIntake = {
 // ===================================================================
 const CounterOrder = {
   order: null,
+  _indicator: null,
 
   async mount() {
     const id = new URLSearchParams(window.location.search).get("id");
     if (!id) { $("order-main").textContent = "No order id given."; return; }
-    await this.load(id);
+    this._indicator = mountSyncIndicator($("sync-indicator"));
+    livePoll(
+      () => this.fetchOrder(id),
+      (o) => this.applyUpdate(o),
+      { onSync: this._indicator.onSync },
+    );
   },
 
-  async load(id) {
+  async fetchOrder(id) {
     const res = await fetch(`/api/order/${encodeURIComponent(id)}`);
     if (!res.ok) {
+      // 404 — render the empty state once; livePoll will keep retrying
+      // silently in case the order shows up later (e.g. fresh insert
+      // hasn't projected yet).
       $("order-main").innerHTML = `<p class="empty">Order not found.</p>`;
-      return;
+      throw new Error("not found");
     }
-    this.order = await res.json();
+    return res.json();
+  },
+
+  applyUpdate(o) {
+    this.order = o;
     this.render();
+  },
+
+  // Kept for the post-action refresh path. Same behavior as before:
+  // immediate fetch + render after the user advances/reverts a stage.
+  async load(id) {
+    try {
+      const o = await this.fetchOrder(id);
+      this.applyUpdate(o);
+    } catch { /* fetchOrder already painted the empty state */ }
   },
 
   render() {
