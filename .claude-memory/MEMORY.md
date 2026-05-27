@@ -6,3 +6,4 @@
 - [Framing project location](reference_framing_location.md) — /Users/dpark/Manzano/framing, runs grove-server + serve.py
 - [Refresh where_we_are.md on every commit](feedback_framing_where_we_are_on_commit.md) — update the living status doc as part of every framing repo commit, not separately
 - [Framing git workflow](feedback_framing_git_workflow.md) — pull at start, push at end, update `backup` branch on origin to HEAD~1 before each push for one-step rollback
+- [Tag where_we_are.md + commits with (Windows)/(Mac)](feedback_framing_machine_tag.md) — per-machine origin tag so Drew can see which side a change came from (DBs are not shared)

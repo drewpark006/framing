@@ -31,6 +31,7 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
   - PWA: `apps/main/manifest.webmanifest`, V-mark icons at 180px/512px + favicon, head tags + apple-mobile-web-app meta on all counter pages and login
   - Branding pass: all counter HTML chrome reads "Verso". Shop name "Thomson's Art & Frame" stays where it belongs (ticket header, SMS body)
 - **Live cross-device sync landed:** `livePoll` helper in `counter.js` polls /api/orders (dashboard) and /api/order/&lt;id&gt; (detail) every 5s, hash-compares to skip re-render when nothing changed, and skips entirely when the tab is hidden. Header gets a "Synced just now" indicator with a green flash dot when new data lands. Smoke-tested: a single /counter/ load produces one immediate fetch then ~one every 5s; order detail does the same against /api/order/&lt;id&gt;. Intake page does NOT poll (would clobber typed input). Script tags carry a `?v=livesync` cache buster so the first deploy/refresh actually picks up the new bundle
+- `seed.js` expanded from 3 to 9 sample orders (tickets 0045664–0045672) spanning all four active stages — gives Matt a more populated dashboard on demo day (Windows)
 
 ## In flight
 
