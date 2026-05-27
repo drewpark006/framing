@@ -21,6 +21,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = $PSScriptRoot
 $ClaudeDir = Join-Path $HOME ".claude"
 New-Item -ItemType Directory -Force -Path $ClaudeDir | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $ClaudeDir "hooks") | Out-Null
 
 # Copy statusline script into ~/.claude/ so settings.json can reference a
 # stable user-level path (not the repo path).
@@ -28,6 +29,29 @@ $statuslineSource = Join-Path $ScriptDir "claude-statusline.ps1"
 $statuslineDest   = Join-Path $ClaudeDir "statusline-command.ps1"
 Copy-Item $statuslineSource $statuslineDest -Force
 Write-Host "statusline installed: $statuslineDest"
+
+# Write the auto-pull sync hook (overwrites any older warn-only version).
+# Clean tree -> pull silently. Dirty tree -> warn.
+$hookPath = Join-Path $ClaudeDir "hooks\framing-sync-check.ps1"
+@'
+$repo = Join-Path $HOME "manzano\framing"
+Set-Location $repo
+git fetch --quiet 2>$null
+$behind = (git rev-list HEAD..'@{u}' --count 2>$null)
+if ([int]$behind -gt 0) {
+    $dirty = (git status --porcelain) -ne $null -and (git status --porcelain).Length -gt 0
+    $commits = (git log HEAD..'@{u}' --oneline) -join ' '
+    if ($dirty) {
+        $msg = "framing repo is $behind commits behind origin/main (other machine): $commits - local uncommitted changes block auto-pull; run: git stash; git pull; git stash pop"
+    } else {
+        git pull --ff-only --quiet 2>$null
+        $msg = "auto-pulled $behind commits from other machine: $commits"
+    }
+    $out = @{ hookSpecificOutput = @{ hookEventName = "UserPromptSubmit"; additionalContext = $msg } }
+    $out | ConvertTo-Json -Compress
+}
+'@ | Out-File -Encoding utf8 $hookPath
+Write-Host "auto-pull hook installed: $hookPath"
 
 $settingsPath = Join-Path $ClaudeDir "settings.json"
 if (Test-Path $settingsPath) {
@@ -65,8 +89,15 @@ $settings.hooks.Notification = @(@{
     })
 })
 
-# Note: any existing UserPromptSubmit entry (e.g. the framing-sync-check
-# hook) is preserved because we only assign to Stop/Notification.
+# Wire the auto-pull sync hook into UserPromptSubmit so it fires on each
+# message. Overwrites any prior entry (idempotent — same end state).
+$settings.hooks.UserPromptSubmit = @(@{
+    matcher = ''
+    hooks   = @(@{
+        type    = 'command'
+        command = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$hookPath`""
+    })
+})
 
 $settings.statusLine = @{
     type    = 'command'
