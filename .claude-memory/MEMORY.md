@@ -5,3 +5,4 @@
 - [Grove module gotchas](feedback_grove_module_gotchas.md) — Z3001 traps: don't `!= null` on non-nullable, update events overwrite with null, Decimal == Int always false
 - [Framing project location](reference_framing_location.md) — /Users/dpark/Manzano/framing, runs grove-server + serve.py
 - [Refresh where_we_are.md on every commit](feedback_framing_where_we_are_on_commit.md) — update the living status doc as part of every framing repo commit, not separately
+- [Framing git workflow](feedback_framing_git_workflow.md) — pull at start, push at end, update `backup` branch on origin to HEAD~1 before each push for one-step rollback
