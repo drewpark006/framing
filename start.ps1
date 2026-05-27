@@ -106,6 +106,9 @@ try {
     Write-Host "> serve.py               -> http://127.0.0.1:$WebPort"
     $env:GROVE_SERVER = "http://127.0.0.1:$AppPort"
     $env:DEV_GROVE_SERVER = "http://127.0.0.1:$DevPort"
+    # Force Python UTF-8 mode so serve.py's box-drawing banner doesn't crash
+    # stdout on Windows (default cp1252 codec can't encode it).
+    $env:PYTHONUTF8 = "1"
     $p3 = Start-Process -FilePath $Python `
         -ArgumentList @((Join-Path $ScriptDir 'serve.py'), $WebPort) `
         -RedirectStandardOutput "$LogDir\serve.log" `
