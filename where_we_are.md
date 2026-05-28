@@ -1,6 +1,6 @@
 # where we are rn
 
-Last updated: 2026-05-27 (Wed)
+Last updated: 2026-05-27 (Wed, late afternoon)
 
 A living status doc. Updated on every commit. Read this first when picking the work back up after a gap.
 
@@ -36,6 +36,7 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 ## In flight
 
 - Twilio A2P 10DLC Sole Proprietor registration, paused mid-form on Business Details step. About 4 screens deep; needs Drew's address, email, OTP'd mobile, then brand + campaign registration
+- Phase 1 research underway — Workstream A (competitive intel) landed at `~/.claude/plans/research/competitive.md`. Headline: FrameReady was discontinued for new features in Sep 2025, same parent now owns LifeSaver. Position Verso as back-of-house ticket tool, not POS. B/C/D workstreams queued (Windows)
 
 ## Queued (in order, Verso launch first)
 
@@ -54,6 +55,7 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 
 ## Decisions made
 
+- **Position Verso as a back-of-house framer-handoff tool, not a POS replacement (2026-05-27, Windows).** Why: competitive intel from Workstream A — LifeSaver/Virtual Framer/FramingPOS are all POS-framed; none focus on the framer-handoff problem; FrameReady (the old "incumbent") was discontinued Sep 2025. Concede visualization, vendor catalogs, and QuickBooks; double down on ticket-first workflow + iPad-PWA + paper-ticket OCR. Full thesis in `~/.claude/plans/research/competitive.md`
 - **Product brand is "Verso", domain deferred.** Why: bare-word "Verso" carries the brand equity (trademark filing is on "VERSO", Classes 9 + 42). verso.com is held by a Belgian retailer; versohq.com, verso.studio, verso.com all taken on 2026-05-26 search. Tomorrow demo runs from `verso-thomson-art.fly.dev`; pick the real URL Friday once Matt and Phil have weighed in
 - **App chrome says "Verso", shop name "Thomson's Art & Frame" stays on tickets and SMS body.** Why: Verso is the product Matt sees, Thomson's is the shop on the printed customer-facing artifacts
 - **One Fly app per shop for v1, no subdomain routing yet.** Why: only one shop (Phil's). Multi-shop slug routing waits for shop #2
@@ -67,6 +69,8 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 
 ## Open questions
 
+- Has Phil heard about the FrameReady discontinuation? Is he getting LifeSaver upsell calls? (Question to ask at the Phil visit; flips the demo from defensive to consultative)
+- Strategic: does Verso ever add frame visualization, or stay pure on the back-of-house story? Workstream A flagged this — visualization is the #1 thing every competitor leads with at the counter, but Phil's framer-handoff use case doesn't need it
 - Is the Phil demo confirmed for Sunday 2026-05-31, or still tentative?
 - Is Matt at the same Sunday session or a separate one?
 - Does Thomson's have a real website? If yes, useful as the campaign URL instead of the github repo

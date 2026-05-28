@@ -7,3 +7,8 @@
 - [Refresh where_we_are.md on every commit](feedback_framing_where_we_are_on_commit.md) — update the living status doc as part of every framing repo commit, not separately
 - [Framing git workflow](feedback_framing_git_workflow.md) — pull at start, push at end, update `backup` branch on origin to HEAD~1 before each push for one-step rollback
 - [Tag where_we_are.md + commits with (Windows)/(Mac)](feedback_framing_machine_tag.md) — per-machine origin tag so Drew can see which side a change came from (DBs are not shared)
+- [Drew's role on Verso](user_drew_verso_role.md) — sole engineer, Mac+Windows, treats Claude as primary planning agent (research + project state)
+- [Verso state snapshot 2026-05-27](project_verso_state_2026_05_27.md) — PWA + login + SMS + scan + sync done, demo deadline loosened, Phase 1 research underway
+- [where_we_are.md is the living status doc](reference_verso_status_doc.md) — read first when picking up Verso work; lives at the framing repo root
+- [Verso competitive landscape 2026](project_verso_competitive_landscape.md) — FrameReady discontinued Sep 2025, LifeSaver is incumbent, Virtual Framer + FramingPOS are modern competitors; back-of-house ticket positioning
+- [The Grumble forum](reference_the_grumble_forum.md) — thegrumble.com is the primary source for verbatim framer complaints and competitive intel
