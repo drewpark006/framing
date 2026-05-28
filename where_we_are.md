@@ -1,6 +1,6 @@
 # where we are rn
 
-Last updated: 2026-05-27 (Wed, late evening)
+Last updated: 2026-05-27 (Wed, night)
 
 A living status doc. Updated on every commit. Read this first when picking the work back up after a gap.
 
@@ -36,9 +36,16 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 ## In flight
 
 - Twilio A2P 10DLC Sole Proprietor registration, paused mid-form on Business Details step. About 4 screens deep; needs Drew's address, email, OTP'd mobile, then brand + campaign registration
-- Phase 1+2 research underway — Workstreams A (competitive), B (domain), C (UX+reliability) landed at `~/.claude/plans/research/{competitive,domain,ux-reliability}.md`. Headlines: FrameReady was discontinued Sep 2025, same parent now owns LifeSaver — position Verso as back-of-house ticket tool, not POS. Schema is already at industry-de-facto field coverage; only real domain gap is the GlassKind enum (Tru Vue 6-tier taxonomy), gated on a Phil question. UX rules: 44×44 touch targets, ≥16px fonts, no iOS background sync ever, SMS beats push for customer notification, Star TSP654II AirPrint as the printer pick if Phil needs paper. D (GTM/pricing) up next (Windows)
+- Phase 1+2 research complete — Workstreams A (competitive), B (domain), C (UX+reliability), D (GTM+pricing) landed at `~/.claude/plans/research/`. Phase 3 (deeper distribution, second-shop scouting) deferred until 10+ paying shops. Headlines now durable in memory: FrameReady discontinued Sep 2025 → position Verso as back-of-house ticket tool not POS; schema is at industry-de-facto coverage (only GlassKind enum gap, gated on Phil); 44×44 touch targets / ≥16px fonts / SMS over push / Star TSP654II AirPrint if paper needed; market is 8,688 indie shops / $1B / proposed pricing $49 Solo + $69 Two-Person with OCR-ingest as the conversion lever; WCAF Expo Orlando Feb 27–Mar 1 2026 is the industry convergence event (Windows)
 
 ## Queued (in order, Verso launch first)
+
+**Demo-day code changes flagged by Workstream C (do before Phil visit):**
+0a. Confirmation modal on `mark_ready` (currently fires Twilio SMS with no confirmation). File: counter dashboard JS
+0b. Bump intake form font sizes (≥16 px on section titles), add visible required-field affordances, replace text-input dates with `<input type="date">`. File: `apps/main/counter/intake.html` + CSS
+0c. Signature-pad polish audit on demo iPad: `touch-action: none`, devicePixelRatio scaling, landscape redraw, Pencil support
+
+**Verso launch (unchanged):**
 
 1. **Drew:** cross-compile grove-server for Linux. Prereqs: start Docker Desktop, `ssh-add ~/.ssh/id_github`. Then `./scripts/build-grove-linux.sh` (~30 min via qemu). Outputs `./grove-server` (linux/amd64 binary) in framing root
 2. **Drew:** `fly launch --no-deploy` to register the app, `fly volumes create framing_data --region ewr --size 1`
@@ -56,6 +63,9 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 ## Decisions made
 
 - **Position Verso as a back-of-house framer-handoff tool, not a POS replacement (2026-05-27, Windows).** Why: competitive intel from Workstream A — LifeSaver/Virtual Framer/FramingPOS are all POS-framed; none focus on the framer-handoff problem; FrameReady (the old "incumbent") was discontinued Sep 2025. Concede visualization, vendor catalogs, and QuickBooks; double down on ticket-first workflow + iPad-PWA + paper-ticket OCR. Full thesis in `~/.claude/plans/research/competitive.md`
+- **Proposed V1 pricing (subject to Drew sign-off, 2026-05-27, Windows):** $49/mo Solo Shop + $69/mo Two-Person Shop, 30-day opt-in (no credit card) free trial, free for Phil indefinitely. No payment processing — concede that lane to Square/Stripe/Lightspeed. Why: positioned in the gap between FramingPOS ($30) and Virtual Framer ($125). Full GTM brief in `~/.claude/plans/research/gtm-pricing.md`
+- **OCR-ingest wizard is the conversion lever and must not be exposed to non-trial users (2026-05-27, Windows).** Why: during the 30-day trial, user scans existing 20 paper tickets into Verso. Walking away from payment = abandoning their existing business in the system. Same dynamic as QuickBooks lock-in. Year-1 funnel target: 50 trial signups → 10 paying shops → $6–8K ARR by month 12
+- **WCAF Expo 2026 — walk the floor, don't booth (2026-05-27, Windows).** Feb 27–Mar 1 2026, Rosen Shingle Creek, Orlando FL (first East Coast venue). Drew goes, talks to 30 shops in one weekend; booth/sponsorship spend deferred until 10+ paying customers
 - **Product brand is "Verso", domain deferred.** Why: bare-word "Verso" carries the brand equity (trademark filing is on "VERSO", Classes 9 + 42). verso.com is held by a Belgian retailer; versohq.com, verso.studio, verso.com all taken on 2026-05-26 search. Tomorrow demo runs from `verso-thomson-art.fly.dev`; pick the real URL Friday once Matt and Phil have weighed in
 - **App chrome says "Verso", shop name "Thomson's Art & Frame" stays on tickets and SMS body.** Why: Verso is the product Matt sees, Thomson's is the shop on the printed customer-facing artifacts
 - **One Fly app per shop for v1, no subdomain routing yet.** Why: only one shop (Phil's). Multi-shop slug routing waits for shop #2

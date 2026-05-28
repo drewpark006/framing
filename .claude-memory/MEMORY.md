@@ -15,3 +15,5 @@
 - [Verso domain findings](project_verso_domain_findings.md) — schema is at industry-de-facto coverage; only real gap is GlassKind enum (no conservation_clear / museum tiers); migration gated on Phil question
 - [Tru Vue glass taxonomy](reference_tru_vue_glass_taxonomy.md) — canonical 6-product glazing vocabulary used industry-wide; use these names, don't invent
 - [Verso UX + reliability findings](project_verso_ux_reliability_findings.md) — 44×44 touch targets, ≥16px fonts, no iOS background sync ever, SMS beats push, signature pad gotchas, Star TSP654II as the printer pick if needed
+- [Verso GTM + pricing](project_verso_gtm_pricing.md) — 8,688 indie shops / $1B market, $49 Solo + $69 Two-Person, 30-day opt-in trial, OCR-ingest is the conversion lever, free for Phil
+- [WCAF Expo 2026](reference_wcaf_expo_2026.md) — Feb 27–Mar 1 2026 in Orlando FL (first East Coast venue); walk the floor, don't booth until 10+ paying customers
