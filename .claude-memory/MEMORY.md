@@ -14,3 +14,4 @@
 - [The Grumble forum](reference_the_grumble_forum.md) — thegrumble.com is the primary source for verbatim framer complaints and competitive intel
 - [Verso domain findings](project_verso_domain_findings.md) — schema is at industry-de-facto coverage; only real gap is GlassKind enum (no conservation_clear / museum tiers); migration gated on Phil question
 - [Tru Vue glass taxonomy](reference_tru_vue_glass_taxonomy.md) — canonical 6-product glazing vocabulary used industry-wide; use these names, don't invent
+- [Verso UX + reliability findings](project_verso_ux_reliability_findings.md) — 44×44 touch targets, ≥16px fonts, no iOS background sync ever, SMS beats push, signature pad gotchas, Star TSP654II as the printer pick if needed
