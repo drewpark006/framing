@@ -1,6 +1,6 @@
 # where we are rn
 
-Last updated: 2026-05-27 (Wed, late afternoon)
+Last updated: 2026-05-27 (Wed, evening)
 
 A living status doc. Updated on every commit. Read this first when picking the work back up after a gap.
 
@@ -36,7 +36,7 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 ## In flight
 
 - Twilio A2P 10DLC Sole Proprietor registration, paused mid-form on Business Details step. About 4 screens deep; needs Drew's address, email, OTP'd mobile, then brand + campaign registration
-- Phase 1 research underway — Workstream A (competitive intel) landed at `~/.claude/plans/research/competitive.md`. Headline: FrameReady was discontinued for new features in Sep 2025, same parent now owns LifeSaver. Position Verso as back-of-house ticket tool, not POS. B/C/D workstreams queued (Windows)
+- Phase 1 research underway — Workstreams A (competitive intel) and B (product domain) landed at `~/.claude/plans/research/{competitive,domain}.md`. Headlines: FrameReady was discontinued for new features in Sep 2025, same parent now owns LifeSaver — position Verso as back-of-house ticket tool, not POS. Schema is already at industry-de-facto field coverage; only real domain gap is the GlassKind enum (missing conservation_clear and museum tiers per Tru Vue's canonical taxonomy), gated on a Phil question before any migration. C (UX/reliability) and D (GTM/pricing) workstreams queued (Windows)
 
 ## Queued (in order, Verso launch first)
 
@@ -71,6 +71,8 @@ A2P 10DLC / SMS work is still queued for Phil-Sunday but it's the slower track. 
 
 - Has Phil heard about the FrameReady discontinuation? Is he getting LifeSaver upsell calls? (Question to ask at the Phil visit; flips the demo from defensive to consultative)
 - Strategic: does Verso ever add frame visualization, or stay pure on the back-of-house story? Workstream A flagged this — visualization is the #1 thing every competitor leads with at the counter, but Phil's framer-handoff use case doesn't need it
+- When the framer cuts glass, how does he know what tier to pull? Does Phil sell Conservation Clear or Museum Glass, or mostly basic regular + plexi? (Workstream B finding — gates a small GlassKind enum migration for V1.1; current enum collapses several Tru Vue tiers)
+- Does Phil price by united inches, per foot, or something else? Does the framer ever do the math, or only Phil? (Gates whether a future pricing helper has product/market fit; don't build it speculatively)
 - Is the Phil demo confirmed for Sunday 2026-05-31, or still tentative?
 - Is Matt at the same Sunday session or a separate one?
 - Does Thomson's have a real website? If yes, useful as the campaign URL instead of the github repo

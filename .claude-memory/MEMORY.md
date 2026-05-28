@@ -12,3 +12,5 @@
 - [where_we_are.md is the living status doc](reference_verso_status_doc.md) — read first when picking up Verso work; lives at the framing repo root
 - [Verso competitive landscape 2026](project_verso_competitive_landscape.md) — FrameReady discontinued Sep 2025, LifeSaver is incumbent, Virtual Framer + FramingPOS are modern competitors; back-of-house ticket positioning
 - [The Grumble forum](reference_the_grumble_forum.md) — thegrumble.com is the primary source for verbatim framer complaints and competitive intel
+- [Verso domain findings](project_verso_domain_findings.md) — schema is at industry-de-facto coverage; only real gap is GlassKind enum (no conservation_clear / museum tiers); migration gated on Phil question
+- [Tru Vue glass taxonomy](reference_tru_vue_glass_taxonomy.md) — canonical 6-product glazing vocabulary used industry-wide; use these names, don't invent
